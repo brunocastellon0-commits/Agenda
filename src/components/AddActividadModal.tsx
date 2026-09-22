@@ -3,10 +3,16 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme'
 
+import { PRIORIDADES, CONTEXTOS } from '../repositories/actividadRepo'
+import { validarEntero, parseNumero } from '../utils/validacion'
+
 export interface NuevaActividadData {
   titulo: string
   descripcion?: string
   hora?: string
+  duracion_estimada_min?: number | null
+  prioridad?: string
+  contexto?: string
 }
 
 interface AddActividadModalProps {
@@ -31,6 +37,10 @@ export function AddActividadModal({
   const [descripcion, setDescripcion] = useState('')
   const [hora, setHora] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [duracion, setDuracion] = useState('')
+  const [prioridad, setPrioridad] = useState<string>('normal')
+  const [contexto, setContexto] = useState<string | null>(null)
 
   useEffect(() => {
     if (visible) {
@@ -38,6 +48,10 @@ export function AddActividadModal({
       setDescripcion('')
       setHora('')
       setError(null)
+      setShowAdvanced(false)
+      setDuracion('')
+      setPrioridad('normal')
+      setContexto(null)
     }
   }, [visible])
 
@@ -57,8 +71,22 @@ export function AddActividadModal({
       setError('La hora debe tener formato HH:MM (ej. 18:30).')
       return
     }
+    if (duracion.trim().length > 0) {
+      const errDuracion = validarEntero(duracion, 1, 1440)
+      if (errDuracion) {
+        setError(`Duración: ${errDuracion}`)
+        return
+      }
+    }
     setError(null)
-    onSave({ titulo: t, descripcion: d.length ? d : undefined, hora: h.length ? h : undefined })
+    onSave({ 
+      titulo: t, 
+      descripcion: d.length ? d : undefined, 
+      hora: h.length ? h : undefined,
+      duracion_estimada_min: duracion.trim().length ? parseNumero(duracion) : null,
+      prioridad: prioridad,
+      contexto: contexto ?? undefined
+    })
   }
 
   return (
@@ -108,6 +136,80 @@ export function AddActividadModal({
                 autoCapitalize="none"
               />
             </View>
+
+            <Pressable
+              style={styles.advancedToggle}
+              onPress={() => setShowAdvanced(!showAdvanced)}
+            >
+              <Text style={[styles.advancedToggleText, { color: accentColor }]}>
+                {showAdvanced ? 'Menos opciones ▲' : 'Más opciones ▼'}
+              </Text>
+            </Pressable>
+
+            {showAdvanced && (
+              <View style={styles.advancedSection}>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Duración estimada (minutos)</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={duracion}
+                    onChangeText={setDuracion}
+                    placeholder="Ej. 45"
+                    placeholderTextColor={PALETTE.onSurfaceVariant}
+                    keyboardType="numeric"
+                    maxLength={4}
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Prioridad</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContainer}>
+                    {PRIORIDADES.map((p) => {
+                      const selected = prioridad === p.valor;
+                      return (
+                        <Pressable
+                          key={p.valor}
+                          onPress={() => setPrioridad(p.valor)}
+                          style={[
+                            styles.chip,
+                            selected && { backgroundColor: p.color }
+                          ]}
+                        >
+                          <Text style={[
+                            styles.chipText,
+                            selected && { color: PALETTE.onAccent }
+                          ]}>{p.label}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </ScrollView>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Contexto</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContainer}>
+                    {CONTEXTOS.map((c) => {
+                      const selected = contexto === c;
+                      return (
+                        <Pressable
+                          key={c}
+                          onPress={() => setContexto(selected ? null : c)}
+                          style={[
+                            styles.chip,
+                            selected && { backgroundColor: accentColor }
+                          ]}
+                        >
+                          <Text style={[
+                            styles.chipText,
+                            selected && { color: PALETTE.onAccent }
+                          ]}>{c}</Text>
+                        </Pressable>
+                      )
+                    })}
+                  </ScrollView>
+                </View>
+              </View>
+            )}
 
             {error && <Text style={styles.error}>{error}</Text>}
 
@@ -211,5 +313,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: PALETTE.onAccent,
+  },
+  advancedToggle: {
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  advancedToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  advancedSection: {
+    marginBottom: 8,
+  },
+  chipsContainer: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  chip: {
+    backgroundColor: PALETTE.surfaceContainer,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.buttons,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: PALETTE.ink,
   },
 })

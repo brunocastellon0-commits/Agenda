@@ -1,6 +1,15 @@
 import { getDatabase } from '../database/db';
 import { PALETTE } from '../theme/theme';
 
+// ─── Tipos de estado ────────────────────────────────────────
+
+export type EstadoPlanificacion = 'planificada' | 'reprogramada' | 'cancelada';
+export type EstadoEjecucion = 'pendiente' | 'en_progreso' | 'completada' | 'no_realizada';
+export type Prioridad = 'critica' | 'alta' | 'normal' | 'baja';
+export type PatronRecurrencia = 'diario' | 'dias_semana' | 'semanal' | 'mensual';
+
+// ─── Interfaces ─────────────────────────────────────────────
+
 export interface TipoActividad {
   id?: number;
   nombre: string;
@@ -16,14 +25,68 @@ export interface Actividad {
   titulo: string;
   descripcion?: string | null;
   hora?: string | null;
-  completado: number; // 0 | 1
+  completado: number; // 0 | 1  — retrocompatible
   proyecto_id?: number | null;
+  // Campos del sistema avanzado
+  duracion_estimada_min?: number | null;
+  duracion_real_min?: number | null;
+  estado_planificacion?: EstadoPlanificacion | null;
+  estado_ejecucion?: EstadoEjecucion | null;
+  prioridad?: Prioridad | null;
+  contexto?: string | null;
+  resultado?: string | null;
+  notas?: string | null;
+  regla_recurrencia_id?: number | null;
+  instancia_origen_id?: number | null;
 }
 
+export interface ActividadSesion {
+  id?: number;
+  actividad_id: number;
+  fecha_hora_inicio: string;
+  fecha_hora_fin?: string | null;
+  duracion_efectiva_min?: number | null;
+  duracion_pausa_min: number;
+  notas?: string | null;
+}
+
+export interface ActividadSubtarea {
+  id?: number;
+  actividad_id: number;
+  titulo: string;
+  completado: number; // 0 | 1
+  orden: number;
+}
+
+export interface ReglaRecurrencia {
+  id?: number;
+  titulo: string;
+  tipo_actividad_id: number;
+  proyecto_id?: number | null;
+  patron: PatronRecurrencia;
+  dias_semana?: string | null; // '1,3,5'
+  hora?: string | null;
+  duracion_estimada_min?: number | null;
+  prioridad: Prioridad;
+}
+
+export interface HistorialEstado {
+  id?: number;
+  actividad_id: number;
+  estado_planificacion_anterior?: string | null;
+  estado_planificacion_nuevo?: string | null;
+  estado_ejecucion_anterior?: string | null;
+  estado_ejecucion_nuevo?: string | null;
+  fecha_hora_cambio: string;
+  motivo?: string | null;
+}
+
+// ─── Constantes ─────────────────────────────────────────────
+
 export const TIPOS_INICIALES: { nombre: string; color: string; emoji: string }[] = [
-  { nombre: 'Trabajo', color: PALETTE.categorias.trabajo, emoji: '💼' },
-  { nombre: 'Universidad', color: PALETTE.categorias.objetivos, emoji: '🎓' },
-  { nombre: 'Ocio', color: PALETTE.categorias.ocio, emoji: '🎮' },
+  { nombre: 'Trabajo', color: PALETTE.categorias.trabajo, emoji: 'work' },
+  { nombre: 'Universidad', color: PALETTE.categorias.objetivos, emoji: 'school' },
+  { nombre: 'Ocio', color: PALETTE.categorias.ocio, emoji: 'sports_esports' },
 ];
 
 export const COLORES_TIPO_ACTIVIDAD: { nombre: string; color: string }[] = [
@@ -36,8 +99,26 @@ export const COLORES_TIPO_ACTIVIDAD: { nombre: string; color: string }[] = [
   { nombre: 'Crítico', color: PALETTE.categorias.critico },
 ];
 
+export const PRIORIDADES: { valor: Prioridad; label: string; color: string }[] = [
+  { valor: 'critica', label: 'Crítica', color: PALETTE.categorias.critico },
+  { valor: 'alta', label: 'Alta', color: PALETTE.categorias.importante },
+  { valor: 'normal', label: 'Normal', color: PALETTE.onSurfaceVariant },
+  { valor: 'baja', label: 'Baja', color: PALETTE.outline },
+];
+
+export const CONTEXTOS = [
+  'Casa', 'Universidad', 'Trabajo', 'Exterior', 'Computadora', 'Teléfono',
+] as const;
+
+// ─── Tipos de Actividad (Áreas) ─────────────────────────────
+
 export const asegurarTiposIniciales = async (): Promise<void> => {
   const db = await getDatabase();
+  // Migración automática de emojis heredados a nombres de MaterialIcons
+  await db.runAsync(`UPDATE tipo_actividad SET emoji = 'work' WHERE emoji = '💼'`);
+  await db.runAsync(`UPDATE tipo_actividad SET emoji = 'school' WHERE emoji = '🎓'`);
+  await db.runAsync(`UPDATE tipo_actividad SET emoji = 'sports_esports' WHERE emoji = '🎮'`);
+
   const row = await db.getFirstAsync<{ total: number }>(
     `SELECT COUNT(*) AS total FROM tipo_actividad`
   );
@@ -75,6 +156,8 @@ export const crearTipoActividad = async (data: {
   return result.lastInsertRowId;
 };
 
+// ─── Actividades (CRUD base) ────────────────────────────────
+
 export const getActividades = async (
   fecha: string,
   tipoId?: number
@@ -92,6 +175,14 @@ export const getActividades = async (
   );
 };
 
+export const getActividadById = async (id: number): Promise<Actividad | null> => {
+  const db = await getDatabase();
+  return db.getFirstAsync<Actividad>(
+    `SELECT * FROM actividad WHERE id = ?`,
+    [id]
+  );
+};
+
 export const crearActividad = async (data: {
   fecha: string;
   tipo_actividad_id: number;
@@ -99,11 +190,18 @@ export const crearActividad = async (data: {
   descripcion?: string | null;
   hora?: string | null;
   proyecto_id?: number | null;
+  duracion_estimada_min?: number | null;
+  prioridad?: Prioridad;
+  contexto?: string | null;
+  regla_recurrencia_id?: number | null;
+  instancia_origen_id?: number | null;
 }): Promise<number> => {
   const db = await getDatabase();
   const result = await db.runAsync(
-    `INSERT INTO actividad (fecha, tipo_actividad_id, titulo, descripcion, hora, completado, proyecto_id)
-     VALUES (?, ?, ?, ?, ?, 0, ?)`,
+    `INSERT INTO actividad (fecha, tipo_actividad_id, titulo, descripcion, hora, completado,
+     proyecto_id, duracion_estimada_min, estado_planificacion, estado_ejecucion, prioridad,
+     contexto, regla_recurrencia_id, instancia_origen_id)
+     VALUES (?, ?, ?, ?, ?, 0, ?, ?, 'planificada', 'pendiente', ?, ?, ?, ?)`,
     [
       data.fecha,
       data.tipo_actividad_id,
@@ -111,6 +209,11 @@ export const crearActividad = async (data: {
       data.descripcion?.trim() || null,
       data.hora?.trim() || null,
       data.proyecto_id ?? null,
+      data.duracion_estimada_min ?? null,
+      data.prioridad ?? 'normal',
+      data.contexto?.trim() || null,
+      data.regla_recurrencia_id ?? null,
+      data.instancia_origen_id ?? null,
     ]
   );
   return result.lastInsertRowId;
@@ -118,8 +221,423 @@ export const crearActividad = async (data: {
 
 export const toggleActividad = async (id: number): Promise<void> => {
   const db = await getDatabase();
-  await db.runAsync(
-    `UPDATE actividad SET completado = 1 - completado WHERE id = ?`,
+  const act = await db.getFirstAsync<{ completado: number; estado_planificacion: string; estado_ejecucion: string }>(
+    `SELECT completado, estado_planificacion, estado_ejecucion FROM actividad WHERE id = ?`,
     [id]
+  );
+  if (!act) return;
+
+  const nuevoCompletado = act.completado === 1 ? 0 : 1;
+  const nuevoEjecucion: EstadoEjecucion = nuevoCompletado === 1 ? 'completada' : 'pendiente';
+
+  await db.runAsync(
+    `UPDATE actividad SET completado = ?, estado_ejecucion = ? WHERE id = ?`,
+    [nuevoCompletado, nuevoEjecucion, id]
+  );
+
+  // Registrar en historial
+  await db.runAsync(
+    `INSERT INTO actividad_historial_estado
+     (actividad_id, estado_planificacion_anterior, estado_planificacion_nuevo,
+      estado_ejecucion_anterior, estado_ejecucion_nuevo, fecha_hora_cambio)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      act.estado_planificacion ?? 'planificada',
+      act.estado_planificacion ?? 'planificada',
+      act.estado_ejecucion ?? (act.completado === 1 ? 'completada' : 'pendiente'),
+      nuevoEjecucion,
+      new Date().toISOString(),
+    ]
+  );
+};
+
+// ─── Transiciones de Estado ─────────────────────────────────
+
+/**
+ * Matriz de transiciones válidas.
+ * Clave: `${planif_actual}/${ejec_actual}` → valores posibles de `${planif_nueva}/${ejec_nueva}`
+ */
+const TRANSICIONES_VALIDAS: Record<string, string[]> = {
+  'planificada/pendiente': [
+    'planificada/en_progreso',   // iniciar
+    'planificada/completada',    // completar rápido
+    'planificada/no_realizada',  // vencimiento
+    'reprogramada/pendiente',    // reprogramar
+    'cancelada/no_realizada',    // cancelar
+  ],
+  'planificada/en_progreso': [
+    'planificada/pendiente',     // sesión parcial finalizada
+    'planificada/completada',    // sesión completada
+  ],
+  'reprogramada/pendiente': [
+    'planificada/en_progreso',   // iniciar actividad reprogramada
+    'planificada/completada',    // completar actividad reprogramada
+    'planificada/no_realizada',  // vencimiento
+    'cancelada/no_realizada',    // cancelar
+  ],
+};
+
+export const transicionarEstado = async (
+  id: number,
+  nuevoPlanificacion: EstadoPlanificacion,
+  nuevoEjecucion: EstadoEjecucion,
+  motivo?: string | null
+): Promise<boolean> => {
+  const db = await getDatabase();
+  const act = await db.getFirstAsync<{
+    estado_planificacion: string;
+    estado_ejecucion: string;
+  }>(`SELECT estado_planificacion, estado_ejecucion FROM actividad WHERE id = ?`, [id]);
+
+  if (!act) return false;
+
+  const planifActual = act.estado_planificacion ?? 'planificada';
+  const ejecActual = act.estado_ejecucion ?? 'pendiente';
+  const claveOrigen = `${planifActual}/${ejecActual}`;
+  const claveDestino = `${nuevoPlanificacion}/${nuevoEjecucion}`;
+
+  const permitidos = TRANSICIONES_VALIDAS[claveOrigen];
+  if (!permitidos || !permitidos.includes(claveDestino)) {
+    console.error(`Transición inválida: ${claveOrigen} → ${claveDestino}`);
+    return false;
+  }
+
+  const nuevoCompletado = nuevoEjecucion === 'completada' ? 1 : 0;
+
+  await db.runAsync(
+    `UPDATE actividad SET estado_planificacion = ?, estado_ejecucion = ?, completado = ? WHERE id = ?`,
+    [nuevoPlanificacion, nuevoEjecucion, nuevoCompletado, id]
+  );
+
+  await db.runAsync(
+    `INSERT INTO actividad_historial_estado
+     (actividad_id, estado_planificacion_anterior, estado_planificacion_nuevo,
+      estado_ejecucion_anterior, estado_ejecucion_nuevo, fecha_hora_cambio, motivo)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, planifActual, nuevoPlanificacion, ejecActual, nuevoEjecucion, new Date().toISOString(), motivo ?? null]
+  );
+
+  return true;
+};
+
+/**
+ * Reprogramar una actividad: marca la original como reprogramada y crea una instancia nueva
+ * en la nueva fecha con `instancia_origen_id` apuntando a la original.
+ */
+export const reprogramarActividad = async (
+  id: number,
+  nuevaFecha: string,
+  motivo?: string
+): Promise<number | null> => {
+  const db = await getDatabase();
+  const original = await getActividadById(id);
+  if (!original || !original.id) return null;
+
+  // Marcar la original como reprogramada
+  const ok = await transicionarEstado(id, 'reprogramada', 'pendiente', motivo);
+  if (!ok) return null;
+
+  // Crear nueva instancia vinculada
+  const nuevoId = await crearActividad({
+    fecha: nuevaFecha,
+    tipo_actividad_id: original.tipo_actividad_id,
+    titulo: original.titulo,
+    descripcion: original.descripcion,
+    hora: original.hora,
+    proyecto_id: original.proyecto_id,
+    duracion_estimada_min: original.duracion_estimada_min,
+    prioridad: (original.prioridad as Prioridad) ?? 'normal',
+    contexto: original.contexto,
+    regla_recurrencia_id: original.regla_recurrencia_id,
+    instancia_origen_id: original.id,
+  });
+
+  return nuevoId;
+};
+
+/**
+ * Guardar resultado / notas de una actividad.
+ */
+export const guardarResultado = async (
+  id: number,
+  resultado?: string | null,
+  notas?: string | null
+): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE actividad SET resultado = ?, notas = ? WHERE id = ?`,
+    [resultado?.trim() || null, notas?.trim() || null, id]
+  );
+};
+
+// ─── Sesiones ───────────────────────────────────────────────
+
+export const iniciarSesion = async (actividadId: number): Promise<number> => {
+  const db = await getDatabase();
+  const ahora = new Date().toISOString();
+
+  // Transicionar a en_progreso si está pendiente
+  const act = await db.getFirstAsync<{ estado_ejecucion: string }>(
+    `SELECT estado_ejecucion FROM actividad WHERE id = ?`,
+    [actividadId]
+  );
+  if (act && (act.estado_ejecucion === 'pendiente')) {
+    await transicionarEstado(actividadId, 'planificada', 'en_progreso');
+  }
+
+  const result = await db.runAsync(
+    `INSERT INTO actividad_sesion (actividad_id, fecha_hora_inicio, duracion_pausa_min)
+     VALUES (?, ?, 0)`,
+    [actividadId, ahora]
+  );
+  return result.lastInsertRowId;
+};
+
+export const finalizarSesion = async (
+  sesionId: number,
+  duracionPausaMin: number,
+  notas?: string | null
+): Promise<void> => {
+  const db = await getDatabase();
+  const ahora = new Date().toISOString();
+
+  // Obtener la sesión para calcular duración
+  const sesion = await db.getFirstAsync<{ actividad_id: number; fecha_hora_inicio: string }>(
+    `SELECT actividad_id, fecha_hora_inicio FROM actividad_sesion WHERE id = ?`,
+    [sesionId]
+  );
+  if (!sesion) return;
+
+  const inicio = new Date(sesion.fecha_hora_inicio).getTime();
+  const fin = new Date(ahora).getTime();
+  const totalMin = Math.round((fin - inicio) / 60000);
+  const efectivaMin = Math.max(0, totalMin - duracionPausaMin);
+
+  await db.runAsync(
+    `UPDATE actividad_sesion
+     SET fecha_hora_fin = ?, duracion_efectiva_min = ?, duracion_pausa_min = ?, notas = ?
+     WHERE id = ?`,
+    [ahora, efectivaMin, duracionPausaMin, notas?.trim() || null, sesionId]
+  );
+
+  // Recalcular duracion_real_min en la actividad (valor cacheado derivado de sesiones)
+  await recalcularDuracionReal(sesion.actividad_id);
+};
+
+export const recalcularDuracionReal = async (actividadId: number): Promise<void> => {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ total: number | null }>(
+    `SELECT SUM(duracion_efectiva_min) AS total
+     FROM actividad_sesion
+     WHERE actividad_id = ? AND duracion_efectiva_min IS NOT NULL`,
+    [actividadId]
+  );
+  const total = row?.total ?? null;
+  await db.runAsync(
+    `UPDATE actividad SET duracion_real_min = ? WHERE id = ?`,
+    [total, actividadId]
+  );
+};
+
+export const getSesionesByActividad = async (actividadId: number): Promise<ActividadSesion[]> => {
+  const db = await getDatabase();
+  return db.getAllAsync<ActividadSesion>(
+    `SELECT * FROM actividad_sesion WHERE actividad_id = ? ORDER BY fecha_hora_inicio DESC`,
+    [actividadId]
+  );
+};
+
+export const getSesionActiva = async (actividadId: number): Promise<ActividadSesion | null> => {
+  const db = await getDatabase();
+  return db.getFirstAsync<ActividadSesion>(
+    `SELECT * FROM actividad_sesion
+     WHERE actividad_id = ? AND fecha_hora_fin IS NULL
+     ORDER BY fecha_hora_inicio DESC LIMIT 1`,
+    [actividadId]
+  );
+};
+
+// ─── Subtareas ──────────────────────────────────────────────
+
+export const getSubtareas = async (actividadId: number): Promise<ActividadSubtarea[]> => {
+  const db = await getDatabase();
+  return db.getAllAsync<ActividadSubtarea>(
+    `SELECT * FROM actividad_subtarea WHERE actividad_id = ? ORDER BY orden, id`,
+    [actividadId]
+  );
+};
+
+export const crearSubtarea = async (actividadId: number, titulo: string): Promise<number> => {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ maxOrden: number | null }>(
+    `SELECT MAX(orden) AS maxOrden FROM actividad_subtarea WHERE actividad_id = ?`,
+    [actividadId]
+  );
+  const orden = (row?.maxOrden ?? -1) + 1;
+  const result = await db.runAsync(
+    `INSERT INTO actividad_subtarea (actividad_id, titulo, completado, orden) VALUES (?, ?, 0, ?)`,
+    [actividadId, titulo.trim(), orden]
+  );
+  return result.lastInsertRowId;
+};
+
+export const toggleSubtarea = async (id: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE actividad_subtarea SET completado = 1 - completado WHERE id = ?`,
+    [id]
+  );
+};
+
+export const eliminarSubtarea = async (id: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM actividad_subtarea WHERE id = ?`, [id]);
+};
+
+export const contarSubtareas = async (actividadId: number): Promise<{ total: number; completadas: number }> => {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ total: number; completadas: number }>(
+    `SELECT COUNT(*) AS total, SUM(completado) AS completadas
+     FROM actividad_subtarea WHERE actividad_id = ?`,
+    [actividadId]
+  );
+  return { total: row?.total ?? 0, completadas: row?.completadas ?? 0 };
+};
+
+// ─── Recurrencia ────────────────────────────────────────────
+
+export const crearReglaRecurrencia = async (data: {
+  titulo: string;
+  tipo_actividad_id: number;
+  proyecto_id?: number | null;
+  patron: PatronRecurrencia;
+  dias_semana?: string | null;
+  hora?: string | null;
+  duracion_estimada_min?: number | null;
+  prioridad?: Prioridad;
+}): Promise<number> => {
+  const db = await getDatabase();
+  const result = await db.runAsync(
+    `INSERT INTO regla_recurrencia
+     (titulo, tipo_actividad_id, proyecto_id, patron, dias_semana, hora, duracion_estimada_min, prioridad)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      data.titulo.trim(),
+      data.tipo_actividad_id,
+      data.proyecto_id ?? null,
+      data.patron,
+      data.dias_semana ?? null,
+      data.hora?.trim() || null,
+      data.duracion_estimada_min ?? null,
+      data.prioridad ?? 'normal',
+    ]
+  );
+  return result.lastInsertRowId;
+};
+
+export const getReglasRecurrencia = async (): Promise<ReglaRecurrencia[]> => {
+  const db = await getDatabase();
+  return db.getAllAsync<ReglaRecurrencia>(
+    `SELECT * FROM regla_recurrencia ORDER BY id`
+  );
+};
+
+/**
+ * Generar instancias concretas de actividades recurrentes dentro de un horizonte de días.
+ * No duplica instancias ya existentes para una misma regla+fecha.
+ */
+export const generarInstanciasRecurrentes = async (
+  horizonteDias: number = 14
+): Promise<number> => {
+  const db = await getDatabase();
+  const reglas = await getReglasRecurrencia();
+  let creadas = 0;
+
+  const hoy = new Date();
+
+  for (const regla of reglas) {
+    if (!regla.id) continue;
+
+    const fechas = calcularFechasRecurrencia(regla, hoy, horizonteDias);
+
+    for (const fecha of fechas) {
+      // Verificar que no exista ya una instancia para esta regla+fecha
+      const existente = await db.getFirstAsync<{ id: number }>(
+        `SELECT id FROM actividad WHERE regla_recurrencia_id = ? AND fecha = ?`,
+        [regla.id, fecha]
+      );
+      if (existente) continue;
+
+      await crearActividad({
+        fecha,
+        tipo_actividad_id: regla.tipo_actividad_id,
+        titulo: regla.titulo,
+        hora: regla.hora,
+        proyecto_id: regla.proyecto_id,
+        duracion_estimada_min: regla.duracion_estimada_min,
+        prioridad: regla.prioridad as Prioridad,
+        regla_recurrencia_id: regla.id,
+      });
+      creadas++;
+    }
+  }
+
+  return creadas;
+};
+
+function calcularFechasRecurrencia(
+  regla: ReglaRecurrencia,
+  desde: Date,
+  horizonteDias: number
+): string[] {
+  const fechas: string[] = [];
+  for (let i = 0; i < horizonteDias; i++) {
+    const dia = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate() + i);
+    const diaSemana = dia.getDay() === 0 ? 7 : dia.getDay(); // Lunes=1 ... Domingo=7
+
+    let incluir = false;
+    switch (regla.patron) {
+      case 'diario':
+        incluir = true;
+        break;
+      case 'dias_semana': {
+        const diasPermitidos = (regla.dias_semana ?? '').split(',').map(Number);
+        incluir = diasPermitidos.includes(diaSemana);
+        break;
+      }
+      case 'semanal':
+        // Por defecto, generar en el mismo día de la semana que la regla fue creada
+        // o en lunes si no se especificó
+        if (regla.dias_semana) {
+          const diasPermitidos = regla.dias_semana.split(',').map(Number);
+          incluir = diasPermitidos.includes(diaSemana);
+        } else {
+          incluir = diaSemana === 1; // Lunes
+        }
+        break;
+      case 'mensual':
+        incluir = dia.getDate() === desde.getDate();
+        break;
+    }
+
+    if (incluir) {
+      const y = dia.getFullYear();
+      const m = String(dia.getMonth() + 1).padStart(2, '0');
+      const d = String(dia.getDate()).padStart(2, '0');
+      fechas.push(`${y}-${m}-${d}`);
+    }
+  }
+  return fechas;
+}
+
+// ─── Historial de Estados ───────────────────────────────────
+
+export const getHistorialEstados = async (actividadId: number): Promise<HistorialEstado[]> => {
+  const db = await getDatabase();
+  return db.getAllAsync<HistorialEstado>(
+    `SELECT * FROM actividad_historial_estado
+     WHERE actividad_id = ? ORDER BY fecha_hora_cambio DESC`,
+    [actividadId]
   );
 };

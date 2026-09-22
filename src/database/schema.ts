@@ -125,4 +125,58 @@ CREATE TABLE IF NOT EXISTS actividad (
 );
 
 CREATE INDEX IF NOT EXISTS idx_actividad_fecha ON actividad(fecha);
+
+-- 11. Reglas de Recurrencia (patrones de repetición para generar instancias)
+CREATE TABLE IF NOT EXISTS regla_recurrencia (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    titulo TEXT NOT NULL,
+    tipo_actividad_id INTEGER NOT NULL,
+    proyecto_id INTEGER,
+    patron TEXT NOT NULL, -- 'diario' | 'dias_semana' | 'semanal' | 'mensual'
+    dias_semana TEXT,     -- ej. '1,3,5' (lunes=1 ... domingo=7)
+    hora TEXT,
+    duracion_estimada_min INTEGER,
+    prioridad TEXT DEFAULT 'normal',
+    FOREIGN KEY (tipo_actividad_id) REFERENCES tipo_actividad(id) ON DELETE CASCADE,
+    FOREIGN KEY (proyecto_id) REFERENCES proyecto(id) ON DELETE SET NULL
+);
+
+-- 12. Sesiones de Actividad (fuente de verdad del tiempo ejecutado)
+CREATE TABLE IF NOT EXISTS actividad_sesion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actividad_id INTEGER NOT NULL,
+    fecha_hora_inicio TEXT NOT NULL,
+    fecha_hora_fin TEXT,
+    duracion_efectiva_min INTEGER,
+    duracion_pausa_min INTEGER DEFAULT 0,
+    notas TEXT,
+    FOREIGN KEY (actividad_id) REFERENCES actividad(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_sesion_actividad ON actividad_sesion(actividad_id);
+
+-- 13. Subtareas de Actividad (checklist interna)
+CREATE TABLE IF NOT EXISTS actividad_subtarea (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actividad_id INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    completado INTEGER DEFAULT 0,
+    orden INTEGER DEFAULT 0,
+    FOREIGN KEY (actividad_id) REFERENCES actividad(id) ON DELETE CASCADE
+);
+
+-- 14. Historial de Estados (auditoría de transiciones reales)
+CREATE TABLE IF NOT EXISTS actividad_historial_estado (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    actividad_id INTEGER NOT NULL,
+    estado_planificacion_anterior TEXT,
+    estado_planificacion_nuevo TEXT,
+    estado_ejecucion_anterior TEXT,
+    estado_ejecucion_nuevo TEXT,
+    fecha_hora_cambio TEXT NOT NULL,
+    motivo TEXT,
+    FOREIGN KEY (actividad_id) REFERENCES actividad(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_historial_actividad ON actividad_historial_estado(actividad_id);
 `;

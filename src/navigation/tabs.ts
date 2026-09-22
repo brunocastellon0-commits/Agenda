@@ -9,6 +9,7 @@ type ScreenNavegable = Exclude<keyof RootStackParamList, 'Home'>;
 const TAB_TO_SCREEN: Partial<Record<TabKey, ScreenNavegable>> = {
   billetera: 'Billetera',
   actividades: 'Actividades',
+  metricas: 'Metricas',
 };
 
 export function tabIndex(tab: TabKey): number {

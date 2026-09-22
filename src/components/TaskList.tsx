@@ -11,8 +11,10 @@ interface TaskListProps {
   actividades: Actividad[]
   pendingCount: number
   accentColor: string
+  subtareasCounts?: Record<number, { total: number; completadas: number }>
   onToggle: (actividadId: number) => void
   onAddPress: () => void
+  onTaskLongPress?: (actividadId: number) => void
 }
 
 export function TaskList({
@@ -20,8 +22,10 @@ export function TaskList({
   actividades,
   pendingCount,
   accentColor,
+  subtareasCounts,
   onToggle,
   onAddPress,
+  onTaskLongPress,
 }: TaskListProps) {
   return (
     <View style={styles.container}>
@@ -48,7 +52,9 @@ export function TaskList({
               key={actividad.id ?? Math.random()}
               actividad={actividad}
               accentColor={accentColor}
+              subtareaProgreso={actividad.id && subtareasCounts ? subtareasCounts[actividad.id] : null}
               onToggle={onToggle}
+              onLongPress={actividad.id && onTaskLongPress ? () => onTaskLongPress(actividad.id!) : undefined}
             />
           ))}
         </View>

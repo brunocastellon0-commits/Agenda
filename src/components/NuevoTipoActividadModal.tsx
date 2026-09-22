@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { MaterialIcons } from '@expo/vector-icons'
 import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme'
 import { COLORES_TIPO_ACTIVIDAD } from '../repositories/actividadRepo'
 
@@ -16,17 +17,36 @@ interface NuevoTipoActividadModalProps {
   onSave: (data: NuevoTipoData) => void
 }
 
+export const ICONOS_DISPONIBLES: (keyof typeof MaterialIcons.glyphMap)[] = [
+  'work',
+  'school',
+  'sports-esports',
+  'fitness-center',
+  'menu-book',
+  'code',
+  'palette',
+  'payments',
+  'shopping-cart',
+  'directions-run',
+  'music-note',
+  'flight',
+  'home',
+  'restaurant',
+  'favorite',
+  'star',
+]
+
 export function NuevoTipoActividadModal({ visible, onClose, onSave }: NuevoTipoActividadModalProps) {
   const insets = useSafeAreaInsets()
   const [nombre, setNombre] = useState('')
-  const [emoji, setEmoji] = useState('')
+  const [selectedIcon, setSelectedIcon] = useState<string>('work')
   const [colorIndex, setColorIndex] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (visible) {
       setNombre('')
-      setEmoji('')
+      setSelectedIcon('work')
       setColorIndex(0)
       setError(null)
     }
@@ -42,7 +62,7 @@ export function NuevoTipoActividadModal({ visible, onClose, onSave }: NuevoTipoA
     onSave({
       nombre: n,
       color: COLORES_TIPO_ACTIVIDAD[colorIndex].color,
-      emoji: emoji.trim().length ? emoji.trim() : undefined,
+      emoji: selectedIcon,
     })
   }
 
@@ -52,8 +72,8 @@ export function NuevoTipoActividadModal({ visible, onClose, onSave }: NuevoTipoA
         <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={(e) => e.stopPropagation()}>
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
-              <Text style={styles.title}>Tipo de actividad</Text>
-              <Text style={styles.subtitle}>Trabajo, universidad, ocio o cualquier cosa que quieras registrar.</Text>
+              <Text style={styles.title}>Nuevo Tipo de Actividad</Text>
+              <Text style={styles.subtitle}>Define una nueva área o categoría personalizada.</Text>
             </View>
 
             <View style={styles.field}>
@@ -62,22 +82,37 @@ export function NuevoTipoActividadModal({ visible, onClose, onSave }: NuevoTipoA
                 style={styles.input}
                 value={nombre}
                 onChangeText={setNombre}
-                placeholder="Ej. Universidad"
+                placeholder="Ej. Programación, Salud, Finanzas..."
                 placeholderTextColor={PALETTE.onSurfaceVariant}
                 maxLength={40}
               />
             </View>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Ícono (opcional)</Text>
-              <TextInput
-                style={styles.input}
-                value={emoji}
-                onChangeText={setEmoji}
-                placeholder="Ej. 🎓"
-                placeholderTextColor={PALETTE.onSurfaceVariant}
-                maxLength={4}
-              />
+              <Text style={styles.label}>Selecciona un Ícono</Text>
+              <View style={styles.iconGrid}>
+                {ICONOS_DISPONIBLES.map((iconName) => {
+                  const isSelected = selectedIcon === iconName
+                  const colorActual = COLORES_TIPO_ACTIVIDAD[colorIndex].color
+                  return (
+                    <Pressable
+                      key={iconName}
+                      onPress={() => setSelectedIcon(iconName)}
+                      style={({ pressed }) => [
+                        styles.iconBox,
+                        isSelected ? { backgroundColor: colorActual } : { backgroundColor: PALETTE.surfaceContainer },
+                        pressed && pressedFeedback,
+                      ]}
+                    >
+                      <MaterialIcons
+                        name={iconName}
+                        size={20}
+                        color={isSelected ? PALETTE.onAccent : PALETTE.ink}
+                      />
+                    </Pressable>
+                  )
+                })}
+              </View>
             </View>
 
             <View style={styles.field}>
@@ -155,13 +190,13 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   field: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   label: {
     fontSize: 12,
     fontWeight: '600',
     color: PALETTE.onSurfaceVariant,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   input: {
     backgroundColor: PALETTE.surfaceContainer,
@@ -170,6 +205,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontSize: 14,
     color: PALETTE.ink,
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  iconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   colorRow: {
     flexDirection: 'row',

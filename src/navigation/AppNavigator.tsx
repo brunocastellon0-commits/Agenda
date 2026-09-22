@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/Home';
 import BilleteraScreen from '../screens/Billetera';
 import ActividadesScreen from '../screens/Actividades';
+import MetricasScreen from '../screens/Metricas';
 import { RootStackParamList } from './types';
 import { PALETTE } from '../theme/theme';
 import { SER_ESPEC_TRANSICION, interpoladorTab } from './transition';
@@ -45,6 +46,14 @@ export default function AppNavigator() {
           component={ActividadesScreen}
           options={({ route }) => ({
             title: 'Actividades',
+            cardStyleInterpolator: interpoladorTab(route.params),
+          })}
+        />
+        <Stack.Screen
+          name="Metricas"
+          component={MetricasScreen}
+          options={({ route }) => ({
+            title: 'Métricas',
             cardStyleInterpolator: interpoladorTab(route.params),
           })}
         />

@@ -15,14 +15,15 @@ import {
   getActividades,
   getTiposActividad,
   toggleActividad,
+  contarSubtareas,
 } from '../repositories/actividadRepo'
 import { etiquetaFecha, fechaSemana, saludoPorHora, toISODate } from '../utils/semana'
 import { GreetingHeader } from '../components/GreetingHeader'
 import { ContextButton } from '../components/ContextButton'
 import { ContextSelectorSheet } from '../components/ContextSelectorSheet'
-import { WeekStrip } from '../components/WeekStrip'
+import { NotebookCalendar } from '../components/NotebookCalendar'
 import { TaskList } from '../components/TaskList'
-import { AddActividadModal } from '../components/AddActividadModal'
+import { AddActividadModal, NuevaActividadData } from '../components/AddActividadModal'
 import { NuevoTipoActividadModal } from '../components/NuevoTipoActividadModal'
 import { BottomNavigationBar } from '../components/ButtonNavigationBar'
 
@@ -33,12 +34,13 @@ export default function ActividadesScreen({ navigation }: Props) {
   const [activeTipoId, setActiveTipoId] = useState<number | undefined>(undefined)
   const [selectedDayId, setSelectedDayId] = useState<string>(() => toISODate(new Date()))
   const [actividades, setActividades] = useState<Actividad[]>([])
+  const [subtareasCounts, setSubtareasCounts] = useState<Record<number, {total: number, completadas: number}>>({})
   const [loading, setLoading] = useState(true)
   const [isSelectorOpen, setSelectorOpen] = useState(false)
   const [isAddOpen, setAddOpen] = useState(false)
   const [isNuevoTipoOpen, setNuevoTipoOpen] = useState(false)
 
-  const days = useMemo(() => fechaSemana(new Date()), [])
+  const days = useMemo(() => fechaSemana(new Date(selectedDayId)), [selectedDayId])
 
   const cargarDatos = useCallback(async () => {
     try {
@@ -48,6 +50,14 @@ export default function ActividadesScreen({ navigation }: Props) {
       setActiveTipoId((prev) => prev ?? tiposCargados[0]?.id)
       const actividadesDia = await getActividades(selectedDayId)
       setActividades(actividadesDia)
+      
+      const counts: Record<number, {total: number, completadas: number}> = {}
+      for (const act of actividadesDia) {
+        if (act.id) {
+          counts[act.id] = await contarSubtareas(act.id)
+        }
+      }
+      setSubtareasCounts(counts)
     } catch (error) {
       console.error('Error al cargar las actividades:', error)
     } finally {
@@ -87,6 +97,18 @@ export default function ActividadesScreen({ navigation }: Props) {
     setSelectedDayId(dayId)
   }
 
+  const handlePrevWeek = () => {
+    const d = new Date(selectedDayId)
+    d.setDate(d.getDate() - 7)
+    setSelectedDayId(toISODate(d))
+  }
+
+  const handleNextWeek = () => {
+    const d = new Date(selectedDayId)
+    d.setDate(d.getDate() + 7)
+    setSelectedDayId(toISODate(d))
+  }
+
   const handleToggle = (actividadId: number) => {
     setActividades((prev) =>
       prev.map((a) => (a.id === actividadId ? { ...a, completado: a.completado === 1 ? 0 : 1 } : a))
@@ -97,7 +119,7 @@ export default function ActividadesScreen({ navigation }: Props) {
     })
   }
 
-  const handleAddActividad = async (data: { titulo: string; descripcion?: string; hora?: string }) => {
+  const handleAddActividad = async (data: NuevaActividadData) => {
     if (!selectedTipo?.id) return
     try {
       await crearActividad({
@@ -106,6 +128,9 @@ export default function ActividadesScreen({ navigation }: Props) {
         titulo: data.titulo,
         descripcion: data.descripcion,
         hora: data.hora,
+        duracion_estimada_min: data.duracion_estimada_min,
+        prioridad: data.prioridad as any,
+        contexto: data.contexto,
       })
       setAddOpen(false)
       cargarDatos()
@@ -136,6 +161,10 @@ export default function ActividadesScreen({ navigation }: Props) {
     )
   }
 
+  const [y, m] = selectedDayId.split('-')
+  const dateObj = new Date(Number(y), Number(m) - 1, 1)
+  const monthName = dateObj.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+
   return (
     <SafeAreaView style={styles.mainContainer} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={PALETTE.surface} />
@@ -152,14 +181,21 @@ export default function ActividadesScreen({ navigation }: Props) {
         />
 
         {selectedTipo && (
-          <ContextButton tipo={selectedTipo} onPress={() => setSelectorOpen(true)} />
+          <ContextButton
+            tipo={selectedTipo}
+            pendingCount={pendientesTipo}
+            onPress={() => setSelectorOpen(true)}
+          />
         )}
 
-        <WeekStrip
+        <NotebookCalendar
           days={days}
           selectedDayId={selectedDayId}
           onSelectDay={handleSelectDay}
           accentColor={accentColor}
+          monthLabel={monthName}
+          onPrevWeek={handlePrevWeek}
+          onNextWeek={handleNextWeek}
         />
 
         <TaskList
@@ -167,6 +203,7 @@ export default function ActividadesScreen({ navigation }: Props) {
           actividades={actividadesTipo}
           pendingCount={pendientesTipo}
           accentColor={accentColor}
+          subtareasCounts={subtareasCounts}
           onToggle={handleToggle}
           onAddPress={() => setAddOpen(true)}
         />
@@ -219,7 +256,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 100,
     gap: 16,
   },
 })

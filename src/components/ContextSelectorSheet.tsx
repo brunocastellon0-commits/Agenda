@@ -30,12 +30,14 @@ export function ContextSelectorSheet({
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 12 }]} onPress={(e) => e.stopPropagation()}>
           <View style={styles.header}>
-            <Text style={styles.headerText}>Tipo de actividad</Text>
+            <Text style={styles.headerText}>Seleccionar Área</Text>
           </View>
 
           {tipos.map((tipo, index) => {
             const isActive = tipo.id === activeTipoId
             const pendientes = pendientesPorTipo[tipo.id ?? -1] ?? 0
+            const iconName = (tipo.emoji as keyof typeof MaterialIcons.glyphMap) || 'folder'
+
             return (
               <Pressable
                 key={tipo.id ?? String(index)}
@@ -46,17 +48,30 @@ export function ContextSelectorSheet({
                   pressed && pressedFeedback,
                 ]}
               >
-                <Text style={styles.optionEmoji}>{tipo.emoji || '·'}</Text>
+                <View style={[styles.iconBox, { backgroundColor: tint(tipo.color) }]}>
+                  <MaterialIcons name={iconName} size={20} color={tipo.color} />
+                  {pendientes > 0 && (
+                    <View style={[styles.socialBadge, { backgroundColor: tipo.color }]}>
+                      <Text style={styles.socialBadgeText}>
+                        {pendientes > 99 ? '99+' : pendientes}
+                      </Text>
+                    </View>
+                  )}
+                </View>
                 <View style={styles.optionTextContainer}>
                   <Text
                     style={[styles.optionLabel, { color: isActive ? tipo.color : PALETTE.ink }]}
                   >
                     {tipo.nombre}
                   </Text>
-                  <Text style={styles.optionSubtitle}>
-                    {pendientes} {pendientes === 1 ? 'pendiente' : 'pendientes'}
-                  </Text>
                 </View>
+                {pendientes > 0 && (
+                  <View style={[styles.badgePill, { backgroundColor: tint(tipo.color) }]}>
+                    <Text style={[styles.badgePillText, { color: tipo.color }]}>
+                      {pendientes}
+                    </Text>
+                  </View>
+                )}
                 {isActive && <View style={[styles.activeDot, { backgroundColor: tipo.color }]} />}
               </Pressable>
             )
@@ -107,7 +122,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     color: PALETTE.onSurfaceVariant,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
@@ -115,16 +130,37 @@ const styles = StyleSheet.create({
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 14,
     paddingHorizontal: 20,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: PALETTE.hairline,
   },
-  optionEmoji: {
-    fontSize: 22,
-    width: 32,
-    textAlign: 'center',
+  iconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  socialBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: PALETTE.surfaceContainerLowest,
+  },
+  socialBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: PALETTE.onAccent,
   },
   optionTextContainer: {
     flex: 1,
@@ -133,10 +169,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  optionSubtitle: {
+  badgePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  badgePillText: {
     fontSize: 12,
-    color: PALETTE.onSurfaceVariant,
-    marginTop: 2,
+    fontWeight: '700',
   },
   activeDot: {
     width: 8,

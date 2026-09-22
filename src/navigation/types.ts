@@ -6,4 +6,5 @@ export type RootStackParamList = {
   Home: undefined;
   Billetera: TabAnimParams | undefined;
   Actividades: TabAnimParams | undefined;
+  Metricas: TabAnimParams | undefined;
 };
