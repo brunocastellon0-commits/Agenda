@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS usuario (
     altura REAL,
     cintura REAL,
     cuello REAL,
-    edad INTEGER
+    edad INTEGER,
+    avatarUrl TEXT
 );
 
 -- 2. Tabla de Bitácora (El contenedor central de cada día)
@@ -27,18 +28,35 @@ CREATE TABLE IF NOT EXISTS billetera (
     entidad TEXT NOT NULL,
     monto REAL DEFAULT 0,
     divisa TEXT DEFAULT 'BOB',
+    objetivo TEXT,
+    objetivo_monto REAL,
     ci_usuario TEXT,
     FOREIGN KEY (ci_usuario) REFERENCES usuario(ci) ON DELETE CASCADE
 );
 
--- 4. Movimientos Financieros (Ingresos / Gastos)
+-- 4. Movimientos Financieros (Ingresos / Gastos / Transferencias)
 CREATE TABLE IF NOT EXISTS movimientos_finan (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     billetera_id INTEGER NOT NULL,
+    billetera_destino_id INTEGER,
+    pago_id INTEGER,
+    tipo TEXT NOT NULL DEFAULT 'ingreso',
     titulo TEXT NOT NULL,
     descripcion TEXT,
     monto REAL NOT NULL,
     fecha_hora TEXT NOT NULL,
+    FOREIGN KEY (billetera_id) REFERENCES billetera(id) ON DELETE CASCADE,
+    FOREIGN KEY (billetera_destino_id) REFERENCES billetera(id) ON DELETE SET NULL,
+    FOREIGN KEY (pago_id) REFERENCES pago(id) ON DELETE SET NULL
+);
+
+-- 4b. Pagos (compromisos de una cuenta: únicos o mensuales)
+CREATE TABLE IF NOT EXISTS pago (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    billetera_id INTEGER NOT NULL,
+    nombre TEXT NOT NULL,
+    monto REAL NOT NULL,
+    tipo TEXT NOT NULL DEFAULT 'individual', -- 'individual' | 'mensual'
     FOREIGN KEY (billetera_id) REFERENCES billetera(id) ON DELETE CASCADE
 );
 
@@ -82,4 +100,29 @@ CREATE TABLE IF NOT EXISTS act_entreno (
     cali_entre INTEGER, -- Calificación del entrenamiento (ej. 1 al 5)
     FOREIGN KEY (bitacora_id) REFERENCES bitacora(id) ON DELETE CASCADE
 );
+
+-- 9. Tipos / Orígenes de Actividad (trabajo, universidad, ocio, ... creables)
+CREATE TABLE IF NOT EXISTS tipo_actividad (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE,
+    color TEXT NOT NULL,
+    emoji TEXT,
+    orden INTEGER DEFAULT 0
+);
+
+-- 10. Actividades del día (vinculadas a un tipo y opcionalmente a un proyecto origen)
+CREATE TABLE IF NOT EXISTS actividad (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL, -- Formato 'YYYY-MM-DD'
+    tipo_actividad_id INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    descripcion TEXT,
+    hora TEXT,
+    completado INTEGER DEFAULT 0, -- 0 para falso, 1 para verdadero en SQLite
+    proyecto_id INTEGER,
+    FOREIGN KEY (tipo_actividad_id) REFERENCES tipo_actividad(id) ON DELETE CASCADE,
+    FOREIGN KEY (proyecto_id) REFERENCES proyecto(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_actividad_fecha ON actividad(fecha);
 `;

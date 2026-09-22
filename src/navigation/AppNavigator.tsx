@@ -1,25 +1,52 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import Home from '../screens/Home';
-import UserTestScreen from '../screens/Home';
+import { createStackNavigator } from '@react-navigation/stack';
+import HomeScreen from '../screens/Home';
+import BilleteraScreen from '../screens/Billetera';
+import ActividadesScreen from '../screens/Actividades';
+import { RootStackParamList } from './types';
+import { PALETTE } from '../theme/theme';
+import { SER_ESPEC_TRANSICION, interpoladorTab } from './transition';
 
-
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="UserTestScreen">
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          gestureEnabled: false,
+          transitionSpec: SER_ESPEC_TRANSICION,
+          cardStyle: { backgroundColor: PALETTE.surface },
+          headerStyle: { backgroundColor: PALETTE.surface },
+          headerTintColor: PALETTE.ink,
+          headerTitleStyle: { fontWeight: '700', color: PALETTE.ink },
+        }}
+      >
         <Stack.Screen
-          name="UserTestScreen"
-          component={UserTestScreen}
-          options={{ title: 'Mi Agenda Personal' }}
+          name="Home"
+          component={HomeScreen}
+          options={({ route }) => ({
+            title: 'Mi Agenda Personal',
+            cardStyleInterpolator: interpoladorTab(route.params),
+          })}
         />
         <Stack.Screen
-          name="Billetera" 
-          component={require('../screens/Billetera').default} 
-          options={{ title: 'Billetera' }} 
+          name="Billetera"
+          component={BilleteraScreen}
+          options={({ route }) => ({
+            title: 'Billetera',
+            cardStyleInterpolator: interpoladorTab(route.params),
+          })}
+        />
+        <Stack.Screen
+          name="Actividades"
+          component={ActividadesScreen}
+          options={({ route }) => ({
+            title: 'Actividades',
+            cardStyleInterpolator: interpoladorTab(route.params),
+          })}
         />
       </Stack.Navigator>
     </NavigationContainer>

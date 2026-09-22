@@ -1,89 +1,133 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, TouchableOpacity, Button } from 'react-native';
-import { saveOrUpdateUsuario, getUsuarios, Usuario } from '../repositories/usuario';
-import { Link } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, SafeAreaView, StatusBar, ScrollView, ActivityIndicator } from 'react-native';
+import { StackScreenProps } from '@react-navigation/stack';
+import { RootStackParamList } from '../navigation/types';
+import { navigateToTab } from '../navigation/tabs';
+import { PALETTE } from '../theme/theme';
+import { Usuario, getUsuarios, saveOrUpdateUsuario } from '../repositories/usuario';
+import { ProfileBanner } from '../components/profileBanner';
+import { GoalProgressCard } from '../components/goalProgressCard';
+import { EditProfileModal } from '../components/EditProfile';
+import { ComparisonCard } from '../components/ComparasionCard';
+import { DistributionCard } from '../components/DistributionCard';
+import { BottomNavigationBar } from '../components/ButtonNavigationBar';
 
-type RootStackParamList = {
-  UserTestScreen: undefined;
-  Billetera: undefined;
+const DEFAULT_USUARIO: Usuario = {
+  ci: '1',
+  nombre: 'Valeria',
+  apellido: 'Morales',
+  peso: 0,
+  altura: 0,
+  cintura: 0,
+  cuello: 0,
+  edad: 0,
+  avatarUrl: '',
 };
 
-export default function UserTestScreen({ navigation }: { navigation: NativeStackNavigationProp<RootStackParamList> }) {
-  const [ci, setCi] = useState('');
-  const [nombre, setNombre] = useState('');
-  const [apellido, setApellido] = useState('');
-  const [peso, setPeso] = useState('');
-  const [altura, setAltura] = useState('');
-  const [cintura, setCintura] = useState('');
-  const [cuello, setCuello] = useState('');
-  const [edad, setEdad] = useState('');
+type Props = StackScreenProps<RootStackParamList, 'Home'>;
 
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+export default function HomeScreen({ navigation }: Props) {
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
 
-  // Función para cargar los usuarios de la BD
-  const cargarUsuarios = async () => {
-    const data = await getUsuarios();
-    setUsuarios(data);
-  };
-
-  // Cargar al abrir la pantalla
   useEffect(() => {
-    cargarUsuarios();
+    let mounted = true;
+
+    const cargarUsuario = async () => {
+      try {
+        const usuarios = await getUsuarios();
+        if (!mounted) return;
+
+        if (usuarios.length === 0) {
+          await saveOrUpdateUsuario(DEFAULT_USUARIO);
+          setUsuario(DEFAULT_USUARIO);
+        } else {
+          setUsuario(usuarios[0]);
+        }
+      } catch (error) {
+        console.error('Error al cargar el usuario:', error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    cargarUsuario();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Rellena el formulario con los datos de un usuario tocado
-  const rellenarFormulario = (usuario: Usuario) => {
-    setCi(usuario.ci ?? '');
-    setNombre(usuario.nombre);
-    setApellido(usuario.apellido);
-    setPeso(usuario.peso.toString());
-    setAltura(usuario.altura.toString());
-    setCintura(usuario.cintura.toString());
-    setCuello(usuario.cuello.toString());
-    setEdad(usuario.edad.toString());
+  const handleSaveProfile = (updated: Usuario) => {
+    setUsuario(updated);
+    setIsModalOpen(false);
+    saveOrUpdateUsuario(updated).catch((error) => {
+      console.error('Error al guardar el usuario:', error);
+    });
   };
 
-  const handleGuardar = async () => {
-    try {
-      await saveOrUpdateUsuario({
-        ci: ci,
-        nombre: nombre,
-        apellido: apellido,
-        peso: Number(peso),
-        altura: Number(altura),
-        cintura: Number(cintura),
-        cuello: Number(cuello),
-        edad: Number(edad),
-      });
-      alert('¡Usuario guardado con éxito!');
-      cargarUsuarios(); // Recargar la vista para verificar
-    } catch (error) {
-      console.error(error);
-      alert('Hubo un error al guardar');
-    }
-  };
+  if (loading) {
+    return (
+      <View style={styles.mainContainer}>
+        <StatusBar barStyle="dark-content" backgroundColor={PALETTE.surface} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={PALETTE.ink} />
+        </View>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView style={{ padding: 20 }}>
-      <Text>--- FORMULARIO DE PRUEBA USUARIO ---</Text>
+    <View style={styles.mainContainer}>
+      <StatusBar barStyle="dark-content" backgroundColor={PALETTE.surface} />
 
-      <TextInput placeholder="CI" value={ci} onChangeText={setCi} />
-      <TextInput placeholder="Nombre" value={nombre} onChangeText={setNombre} />
-      <TextInput placeholder="Apellido" value={apellido} onChangeText={setApellido} />
-      <TextInput placeholder="Peso" value={peso} onChangeText={setPeso} keyboardType="numeric" />
-      <TextInput placeholder="Altura" value={altura} onChangeText={setAltura} keyboardType="numeric" />
-      <TextInput placeholder="Cintura" value={cintura} onChangeText={setCintura} keyboardType="numeric" />
-      <TextInput placeholder="Cuello" value={cuello} onChangeText={setCuello} keyboardType="numeric" />
-      <TextInput placeholder="Edad" value={edad} onChangeText={setEdad} keyboardType="numeric" />
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {usuario && (
+          <ProfileBanner
+            usuario={usuario}
+            onEditPress={() => setIsModalOpen(true)}
+          />
+        )}
 
-      <Button title="Guardar en SQLite" onPress={handleGuardar} />
+        <ComparisonCard />
+        <DistributionCard />
+        <GoalProgressCard />
+      </ScrollView>
 
-      <Button
-        title="Ir a Billetera"
-        onPress={() => navigation.navigate('Billetera')}
+      <BottomNavigationBar
+        activeTab="inicio"
+        onSelectTab={(tab) => navigateToTab(navigation, 'inicio', tab)}
       />
- 
-    </ScrollView>
+
+      {usuario && (
+        <EditProfileModal
+          visible={isModalOpen}
+          currentProfile={usuario}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSaveProfile}
+        />
+      )}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: PALETTE.surface,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 24,
+    paddingTop: 16,
+    gap: 16,
+  },
+});
