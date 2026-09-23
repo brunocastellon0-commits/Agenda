@@ -10,7 +10,8 @@ interface ContextSelectorSheetProps {
   tipos: TipoActividad[]
   activeTipoId?: number
   pendientesPorTipo: Record<number, number>
-  onSelect: (tipo: TipoActividad) => void
+  totalPendientes?: number
+  onSelect: (tipo: TipoActividad | null) => void
   onCreateTipo: () => void
   onClose: () => void
 }
@@ -20,6 +21,7 @@ export function ContextSelectorSheet({
   tipos,
   activeTipoId,
   pendientesPorTipo,
+  totalPendientes = 0,
   onSelect,
   onCreateTipo,
   onClose,
@@ -32,6 +34,42 @@ export function ContextSelectorSheet({
           <View style={styles.header}>
             <Text style={styles.headerText}>Seleccionar Área</Text>
           </View>
+
+          {/* Opción 'Todas las áreas' */}
+          <Pressable
+            onPress={() => onSelect(null)}
+            style={({ pressed }) => [
+              styles.option,
+              activeTipoId === undefined && { backgroundColor: tint(PALETTE.primary) },
+              pressed && pressedFeedback,
+            ]}
+          >
+            <View style={[styles.iconBox, { backgroundColor: tint(PALETTE.primary) }]}>
+              <MaterialIcons name="grid-view" size={20} color={PALETTE.primary} />
+              {totalPendientes > 0 && (
+                <View style={[styles.socialBadge, { backgroundColor: PALETTE.primary }]}>
+                  <Text style={styles.socialBadgeText}>
+                    {totalPendientes > 99 ? '99+' : totalPendientes}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.optionTextContainer}>
+              <Text
+                style={[styles.optionLabel, { color: activeTipoId === undefined ? PALETTE.primary : PALETTE.ink }]}
+              >
+                Todas las áreas
+              </Text>
+            </View>
+            {totalPendientes > 0 && (
+              <View style={[styles.badgePill, { backgroundColor: tint(PALETTE.primary) }]}>
+                <Text style={[styles.badgePillText, { color: PALETTE.primary }]}>
+                  {totalPendientes}
+                </Text>
+              </View>
+            )}
+            {activeTipoId === undefined && <View style={[styles.activeDot, { backgroundColor: PALETTE.primary }]} />}
+          </Pressable>
 
           {tipos.map((tipo, index) => {
             const isActive = tipo.id === activeTipoId

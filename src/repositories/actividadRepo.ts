@@ -158,6 +158,105 @@ export const crearTipoActividad = async (data: {
 
 // ─── Actividades (CRUD base) ────────────────────────────────
 
+export interface IndicadorDiaMes {
+  total: number;
+  pendientes: number;
+  colores: string[];
+  /** Total de áreas distintas (puede ser >3, colores solo guarda las 3 primeras) */
+  totalAreas: number;
+  tieneCritica: boolean;
+}
+
+export const getIndicadoresMes = async (
+  anoMes: string,
+  tipoId?: number
+): Promise<Record<string, IndicadorDiaMes>> => {
+  const db = await getDatabase();
+  const patronFecha = `${anoMes}-%`;
+
+  let rows: {
+    fecha: string;
+    completado: number;
+    prioridad: string | null;
+    color: string;
+  }[];
+
+  if (tipoId !== undefined) {
+    rows = await db.getAllAsync(
+      `SELECT a.fecha, a.completado, a.prioridad, t.color
+       FROM actividad a
+       JOIN tipo_actividad t ON a.tipo_actividad_id = t.id
+       WHERE a.fecha LIKE ? AND a.tipo_actividad_id = ?`,
+      [patronFecha, tipoId]
+    );
+  } else {
+    rows = await db.getAllAsync(
+      `SELECT a.fecha, a.completado, a.prioridad, t.color
+       FROM actividad a
+       JOIN tipo_actividad t ON a.tipo_actividad_id = t.id
+       WHERE a.fecha LIKE ?`,
+      [patronFecha]
+    );
+  }
+
+  const mapa: Record<string, IndicadorDiaMes & { _seenColores: Set<string> }> = {};
+  for (const row of rows) {
+    if (!mapa[row.fecha]) {
+      mapa[row.fecha] = {
+        total: 0,
+        pendientes: 0,
+        colores: [],
+        totalAreas: 0,
+        tieneCritica: false,
+        _seenColores: new Set(),
+      };
+    }
+    const item = mapa[row.fecha];
+    item.total++;
+    if (row.completado === 0) {
+      item.pendientes++;
+      if (row.prioridad === 'critica' || row.prioridad === 'alta') {
+        item.tieneCritica = true;
+      }
+    }
+    if (row.color && !item._seenColores.has(row.color)) {
+      item._seenColores.add(row.color);
+      item.totalAreas++;
+      if (item.colores.length < 3) {
+        item.colores.push(row.color);
+      }
+    }
+  }
+
+  // Limpiar campo auxiliar antes de devolver
+  const resultado: Record<string, IndicadorDiaMes> = {};
+  for (const [fecha, item] of Object.entries(mapa)) {
+    const { _seenColores, ...indicador } = item;
+    resultado[fecha] = indicador;
+  }
+
+  return resultado;
+};
+
+export const eliminarActividad = async (id: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(`DELETE FROM actividad WHERE id = ?`, [id]);
+};
+
+export const marcarEnProgreso = async (id: number): Promise<void> => {
+  const db = await getDatabase();
+  const act = await db.getFirstAsync<{ estado_ejecucion: string }>(
+    `SELECT estado_ejecucion FROM actividad WHERE id = ?`,
+    [id]
+  );
+  if (!act) return;
+  const nuevo: EstadoEjecucion = act.estado_ejecucion === 'en_progreso' ? 'pendiente' : 'en_progreso';
+  await db.runAsync(
+    `UPDATE actividad SET estado_ejecucion = ?, completado = 0 WHERE id = ?`,
+    [nuevo, id]
+  );
+};
+
 export const getActividades = async (
   fecha: string,
   tipoId?: number
@@ -250,6 +349,89 @@ export const toggleActividad = async (id: number): Promise<void> => {
       new Date().toISOString(),
     ]
   );
+};
+
+// ─── Atrasadas y Reprogramación en Lote ─────────────────────
+
+/**
+ * Obtiene actividades de días anteriores que siguen pendientes o en progreso.
+ * Útil para la sección "Atrasadas" de la vista "Todas las áreas".
+ */
+export const getActividadesAtrasadas = async (): Promise<Actividad[]> => {
+  const db = await getDatabase();
+  const hoy = new Date();
+  const y = hoy.getFullYear();
+  const m = String(hoy.getMonth() + 1).padStart(2, '0');
+  const d = String(hoy.getDate()).padStart(2, '0');
+  const hoyISO = `${y}-${m}-${d}`;
+
+  return db.getAllAsync<Actividad>(
+    `SELECT * FROM actividad
+     WHERE fecha < ?
+       AND estado_ejecucion IN ('pendiente', 'en_progreso')
+       AND (estado_planificacion IS NULL OR estado_planificacion = 'planificada')
+     ORDER BY fecha DESC, hora ASC`,
+    [hoyISO]
+  );
+};
+
+export interface UndoLoteInfo {
+  /** id → { fechaOriginal, horaOriginal } */
+  originales: Record<number, { fecha: string; hora: string | null }>;
+}
+
+/**
+ * Reprograma un lote de actividades a una nueva fecha.
+ * A diferencia de reprogramarActividad (que crea instancia nueva y marca la original),
+ * esto simplemente mueve la actividad (UPDATE) para evitar duplicados masivos.
+ * Devuelve la info necesaria para Deshacer (Undo).
+ */
+export const reprogramarLote = async (
+  ids: number[],
+  nuevaFecha: string
+): Promise<UndoLoteInfo> => {
+  const db = await getDatabase();
+  const originales: Record<number, { fecha: string; hora: string | null }> = {};
+
+  for (const id of ids) {
+    const act = await db.getFirstAsync<{ fecha: string; hora: string | null }>(
+      `SELECT fecha, hora FROM actividad WHERE id = ?`,
+      [id]
+    );
+    if (act) {
+      originales[id] = { fecha: act.fecha, hora: act.hora };
+    }
+  }
+
+  // Mover todas en una transacción
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const id of ids) {
+      await txn.runAsync(
+        `UPDATE actividad SET fecha = ? WHERE id = ?`,
+        [nuevaFecha, id]
+      );
+    }
+  });
+
+  return { originales };
+};
+
+/**
+ * Deshace una reprogramación en lote: restaura cada actividad a su fecha y hora originales.
+ */
+export const deshacerReprogramarLote = async (
+  undo: UndoLoteInfo
+): Promise<void> => {
+  const db = await getDatabase();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const [idStr, orig] of Object.entries(undo.originales)) {
+      const id = Number(idStr);
+      await txn.runAsync(
+        `UPDATE actividad SET fecha = ?, hora = ? WHERE id = ?`,
+        [orig.fecha, orig.hora, id]
+      );
+    }
+  });
 };
 
 // ─── Transiciones de Estado ─────────────────────────────────

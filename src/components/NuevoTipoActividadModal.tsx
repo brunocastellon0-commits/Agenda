@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
-import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme'
+import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme'
 import { COLORES_TIPO_ACTIVIDAD } from '../repositories/actividadRepo'
 
 export interface NuevoTipoData {
@@ -74,6 +74,36 @@ export function NuevoTipoActividadModal({ visible, onClose, onSave }: NuevoTipoA
             <View style={styles.header}>
               <Text style={styles.title}>Nuevo Tipo de Actividad</Text>
               <Text style={styles.subtitle}>Define una nueva área o categoría personalizada.</Text>
+            </View>
+
+            {/* Vista previa en tiempo real */}
+            <View style={styles.previewContainer}>
+              <Text style={styles.previewLabel}>VISTA PREVIA</Text>
+              <View style={[styles.previewCard, { backgroundColor: tint(COLORES_TIPO_ACTIVIDAD[colorIndex].color, 0.08) }]}>
+                <View
+                  style={[
+                    styles.previewIconBox,
+                    { backgroundColor: COLORES_TIPO_ACTIVIDAD[colorIndex].color },
+                  ]}
+                >
+                  <MaterialIcons
+                    name={(selectedIcon as keyof typeof MaterialIcons.glyphMap) || 'folder'}
+                    size={22}
+                    color={PALETTE.onAccent}
+                  />
+                </View>
+                <View style={styles.previewTextContainer}>
+                  <Text
+                    style={[
+                      styles.previewTitle,
+                      { color: COLORES_TIPO_ACTIVIDAD[colorIndex].color },
+                    ]}
+                  >
+                    {nombre.trim().length > 0 ? nombre.trim() : 'Nombre del área'}
+                  </Text>
+                  <Text style={styles.previewSubtitle}>Área de actividad personalizada</Text>
+                </View>
+              </View>
             </View>
 
             <View style={styles.field}>
@@ -177,6 +207,42 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  previewContainer: {
+    marginBottom: 16,
+  },
+  previewLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: PALETTE.onSurfaceVariant,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: RADIUS.interior,
+  },
+  previewIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewTextContainer: {
+    flex: 1,
+  },
+  previewTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  previewSubtitle: {
+    fontSize: 12,
+    color: PALETTE.onSurfaceVariant,
+    marginTop: 2,
   },
   title: {
     fontSize: 18,
