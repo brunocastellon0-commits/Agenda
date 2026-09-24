@@ -510,6 +510,20 @@ export function AllAreasDayView({
           )}
         </>
       )}
+
+      {/* ── 7. BARRA "AGREGAR OTRA ACTIVIDAD" (solo cuando hay actividades) ── */}
+      {actividades.length > 0 && (
+        <Pressable
+          onPress={onAddPress}
+          style={({ pressed }) => [styles.addBar, pressed && pressedFeedback]}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar otra actividad"
+        >
+          <MaterialIcons name="add" size={18} color={PALETTE.primary} />
+          <Text style={styles.addBarText}>Agregar otra actividad</Text>
+        </Pressable>
+      )}
     </View>
   )
 }
@@ -756,6 +770,20 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: 8,
+  },
+  addBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: RADIUS.buttons,
+    backgroundColor: tint(PALETTE.primary, 0.12),
+  },
+  addBarText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: PALETTE.primary,
   },
 
   // ── Modo Por Área (Acordeón) ──

@@ -35,6 +35,38 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   await ensureColumn(db, 'actividad', 'notas', 'TEXT');
   await ensureColumn(db, 'actividad', 'regla_recurrencia_id', 'INTEGER');
   await ensureColumn(db, 'actividad', 'instancia_origen_id', 'INTEGER');
+  await ensureColumn(db, 'actividad', 'eliminada', 'INTEGER DEFAULT 0');
+
+  // -- Regla de recurrencia: rango de días + período con unidades --
+  await ensureColumn(db, 'regla_recurrencia', 'activa', 'INTEGER DEFAULT 1');
+  await ensureColumn(db, 'regla_recurrencia', 'dia_inicio', 'INTEGER');
+  await ensureColumn(db, 'regla_recurrencia', 'dia_fin', 'INTEGER');
+  await ensureColumn(db, 'regla_recurrencia', 'fecha_inicio', 'TEXT');
+  await ensureColumn(db, 'regla_recurrencia', 'repeticion_numero', 'INTEGER');
+  await ensureColumn(db, 'regla_recurrencia', 'repeticion_unidad', 'TEXT');
+
+  // Migración de reglas legacy: derivar dia_inicio/dia_fin desde dias_semana
+  const reglasLegacy = await db.getAllAsync<{ id: number; dias_semana: string | null; patron: string }>(
+    `SELECT id, dias_semana, patron FROM regla_recurrencia WHERE dia_inicio IS NULL`
+  );
+  for (const regla of reglasLegacy) {
+    let diaInicio = 1
+    let diaFin = 7
+    if (regla.dias_semana && regla.dias_semana.trim().length > 0) {
+      const dias = regla.dias_semana.split(',').map((d) => Number(d)).filter((d) => Number.isFinite(d))
+      if (dias.length > 0) {
+        diaInicio = Math.min(...dias)
+        diaFin = Math.max(...dias)
+      }
+    } else if (regla.patron === 'semanal') {
+      diaInicio = 1
+      diaFin = 1
+    }
+    await db.runAsync(
+      `UPDATE regla_recurrencia SET dia_inicio = ?, dia_fin = ?, activa = 1 WHERE id = ?`,
+      [diaInicio, diaFin, regla.id]
+    );
+  }
 
   // Reconstrucción neutra: sincronizar estado_ejecucion con completado existente
   // Solo para registros que aún tienen el default 'pendiente' pero completado=1
@@ -47,6 +79,7 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!dbInstance) {
     dbInstance = await SQLite.openDatabaseAsync('agenda_personal.db');
+    await dbInstance.execAsync('PRAGMA foreign_keys = ON;');
     await dbInstance.execAsync(CREATE_TABLES_SQL);
     await runMigrations(dbInstance);
   }

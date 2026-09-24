@@ -17,7 +17,7 @@ const TABS: { key: TabKey; label: string; icon: keyof typeof MaterialIcons.glyph
   { key: 'inicio', label: 'Inicio', icon: 'home' },
   { key: 'actividades', label: 'Actividades', icon: 'checklist' },
   { key: 'metricas', label: 'Métricas', icon: 'bar-chart' },
-  { key: 'perfil', label: 'Perfil', icon: 'person' },
+  { key: 'comida', label: 'Comida', icon: 'restaurant' },
 ];
 
 export function BottomNavigationBar({ activeTab, onSelectTab }: Props) {

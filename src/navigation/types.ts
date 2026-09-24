@@ -7,4 +7,5 @@ export type RootStackParamList = {
   Billetera: TabAnimParams | undefined;
   Actividades: TabAnimParams | undefined;
   Metricas: TabAnimParams | undefined;
+  Comida: TabAnimParams | undefined;
 };

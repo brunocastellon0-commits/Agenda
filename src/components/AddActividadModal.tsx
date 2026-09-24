@@ -4,7 +4,12 @@ import DateTimePicker from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
 import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme'
-import { PRIORIDADES, PatronRecurrencia, Prioridad, TipoActividad } from '../repositories/actividadRepo'
+import {
+  PRIORIDADES,
+  Prioridad,
+  TipoActividad,
+  UnidadRepeticion,
+} from '../repositories/actividadRepo'
 import { padCero, toFechaISO } from '../utils/calendario'
 import { getUltimaAreaUsadaId, setUltimaAreaUsadaId } from '../utils/triage'
 
@@ -16,7 +21,11 @@ export interface NuevaActividadData {
   hora?: string
   duracion_estimada_min?: number | null
   prioridad?: Prioridad
-  patron_recurrencia?: PatronRecurrencia | null
+  /** Rango de días de la semana (1=Lun … 7=Dom). Si se define, la actividad es recurrente */
+  dia_inicio?: number
+  dia_fin?: number
+  repeticion_numero?: number
+  repeticion_unidad?: UnidadRepeticion
 }
 
 interface AddActividadModalProps {
@@ -31,12 +40,21 @@ interface AddActividadModalProps {
 
 const HORA_REGEX = /^([01]?\d|2[0-3]):[0-5]\d$/
 
-const DURACIONES_CHIPS = [
-  { label: '15m', valor: 15 },
-  { label: '30m', valor: 30 },
-  { label: '45m', valor: 45 },
-  { label: '1h', valor: 60 },
-  { label: '2h', valor: 120 },
+const DIAS_SEMANA: { valor: number; label: string }[] = [
+  { valor: 1, label: 'Lun' },
+  { valor: 2, label: 'Mar' },
+  { valor: 3, label: 'Mié' },
+  { valor: 4, label: 'Jue' },
+  { valor: 5, label: 'Vie' },
+  { valor: 6, label: 'Sáb' },
+  { valor: 7, label: 'Dom' },
+]
+
+const UNIDADES_REPETICION: { valor: UnidadRepeticion; label: string }[] = [
+  { valor: 'dias', label: 'Días' },
+  { valor: 'semanas', label: 'Semanas' },
+  { valor: 'meses', label: 'Meses' },
+  { valor: 'indefinido', label: 'Indefinido' },
 ]
 
 export function AddActividadModal({
@@ -61,8 +79,13 @@ export function AddActividadModal({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [descripcion, setDescripcion] = useState('')
   const [duracionMin, setDuracionMin] = useState<number | null>(null)
+  const [mostrarPickerDuracion, setMostrarPickerDuracion] = useState(false)
   const [prioridad, setPrioridad] = useState<Prioridad>('normal')
-  const [patronRecurrencia, setPatronRecurrencia] = useState<PatronRecurrencia | null>(null)
+  // Recurrencia: rango de días de la semana + período (número + unidad)
+  const [diaInicio, setDiaInicio] = useState<number | null>(null)
+  const [diaFin, setDiaFin] = useState<number | null>(null)
+  const [repeticionNumero, setRepeticionNumero] = useState(1)
+  const [repeticionUnidad, setRepeticionUnidad] = useState<UnidadRepeticion>('indefinido')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -79,8 +102,12 @@ export function AddActividadModal({
       setShowAdvanced(false)
       setDescripcion('')
       setDuracionMin(null)
+      setMostrarPickerDuracion(false)
       setPrioridad('normal')
-      setPatronRecurrencia(null)
+      setDiaInicio(null)
+      setDiaFin(null)
+      setRepeticionNumero(1)
+      setRepeticionUnidad('indefinido')
       setError(null)
     }
   }, [visible, fechaPorDefecto, tipoPorDefectoId, tipos])
@@ -92,8 +119,57 @@ export function AddActividadModal({
     setHora(`${padCero(date.getHours())}:${padCero(date.getMinutes())}`)
   }
 
+  const aplicarDuracion = (date: Date) => {
+    const minutos = date.getHours() * 60 + date.getMinutes()
+    setDuracionMin(minutos > 0 ? minutos : null)
+  }
+
   const abrirPicker = () => {
     setMostrarPicker(true)
+  }
+
+  /** Primer toque = día inicio; segundo toque = día fin (rango con wraparound). */
+  const seleccionarDiaRango = (valor: number) => {
+    if (diaInicio === null || diaFin !== null) {
+      // Sin inicio, o rango ya completo: un toque nuevo (re)inicia el rango
+      setDiaInicio(valor)
+      setDiaFin(null)
+      return
+    }
+    // Segundo toque: fija el fin (si es el mismo día, queda como un solo día)
+    setDiaFin(valor)
+  }
+
+  const limpiarRangoDias = () => {
+    setDiaInicio(null)
+    setDiaFin(null)
+  }
+
+  const diasSeleccionados = (() => {
+    if (diaInicio === null) return []
+    if (diaFin === null) return [diaInicio]
+    const dias: number[] = []
+    if (diaInicio <= diaFin) {
+      for (let d = diaInicio; d <= diaFin; d++) dias.push(d)
+    } else {
+      for (let d = diaInicio; d <= 7; d++) dias.push(d)
+      for (let d = 1; d <= diaFin; d++) dias.push(d)
+    }
+    return dias
+  })()
+
+  const etiquetaRangoDias = (() => {
+    if (diaInicio === null) return 'No repetir'
+    const labelDe = (v: number) => DIAS_SEMANA.find((d) => d.valor === v)?.label ?? ''
+    if (diaFin === null || diaFin === diaInicio) return `Solo ${labelDe(diaInicio)}`
+    return `De ${labelDe(diaInicio)} a ${labelDe(diaFin)}`
+  })()
+
+  const formatearDuracion = (min: number | null): string => {
+    if (min == null) return 'Sin duración'
+    const h = Math.floor(min / 60)
+    const m = min % 60
+    return `${padCero(h)}:${padCero(m)}`
   }
 
   const handleGuardar = () => {
@@ -129,7 +205,10 @@ export function AddActividadModal({
       hora: h.length > 0 ? h : undefined,
       duracion_estimada_min: duracionMin,
       prioridad,
-      patron_recurrencia: patronRecurrencia,
+      dia_inicio: diaInicio ?? undefined,
+      dia_fin: diaFin ?? diaInicio ?? undefined,
+      repeticion_numero: repeticionUnidad === 'indefinido' ? undefined : repeticionNumero,
+      repeticion_unidad: diaInicio !== null ? repeticionUnidad : undefined,
     })
   }
 
@@ -313,28 +392,90 @@ export function AddActividadModal({
                   />
                 </View>
 
-                {/* Duración estimada */}
+                {/* Duración estimada: selector tipo hora (HH:MM) */}
                 <View style={styles.field}>
                   <Text style={styles.label}>Duración estimada</Text>
                   <View style={styles.chipsRow}>
-                    {DURACIONES_CHIPS.map((d) => {
-                      const isSel = duracionMin === d.valor
-                      return (
-                        <Pressable
-                          key={d.label}
-                          onPress={() => setDuracionMin(isSel ? null : d.valor)}
-                          style={[
-                            styles.chip,
-                            isSel && [styles.chipActive, { backgroundColor: colorActual }],
-                          ]}
-                        >
-                          <Text style={[styles.chipText, isSel && styles.chipTextActive]}>
-                            {d.label}
-                          </Text>
-                        </Pressable>
-                      )
-                    })}
+                    <Pressable
+                      onPress={() => setMostrarPickerDuracion(true)}
+                      style={({ pressed }) => [
+                        styles.chipRow,
+                        styles.timeChip,
+                        duracionMin != null && [
+                          styles.chipActive,
+                          { backgroundColor: colorActual },
+                        ],
+                        pressed && pressedFeedback,
+                      ]}
+                    >
+                      <MaterialIcons
+                        name="timelapse"
+                        size={14}
+                        color={duracionMin != null ? PALETTE.onAccent : PALETTE.ink}
+                      />
+                      <Text
+                        style={[styles.chipText, duracionMin != null && styles.chipTextActive]}
+                      >
+                        {formatearDuracion(duracionMin)}
+                      </Text>
+                    </Pressable>
+
+                    {duracionMin != null && (
+                      <Pressable
+                        onPress={() => {
+                          setDuracionMin(null)
+                          setMostrarPickerDuracion(false)
+                        }}
+                        style={({ pressed }) => [styles.chip, pressed && pressedFeedback]}
+                      >
+                        <Text style={styles.chipText}>Quitar</Text>
+                      </Pressable>
+                    )}
                   </View>
+
+                  {mostrarPickerDuracion && (
+                    <View style={styles.pickerContainer}>
+                      <DateTimePicker
+                        mode="time"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        value={
+                          duracionMin != null
+                            ? (() => {
+                                const d = new Date()
+                                d.setHours(
+                                  Math.floor(duracionMin / 60),
+                                  duracionMin % 60,
+                                  0,
+                                  0
+                                )
+                                return d
+                              })()
+                            : (() => {
+                                const d = new Date()
+                                d.setHours(0, 30, 0, 0)
+                                return d
+                              })()
+                        }
+                        is24Hour
+                        onChange={(event, date) => {
+                          if (Platform.OS === 'android') {
+                            setMostrarPickerDuracion(false)
+                            if (event.type === 'set' && date) aplicarDuracion(date)
+                          } else if (date) {
+                            aplicarDuracion(date)
+                          }
+                        }}
+                      />
+                      {Platform.OS === 'ios' && (
+                        <Pressable
+                          onPress={() => setMostrarPickerDuracion(false)}
+                          style={({ pressed }) => [styles.pickerDoneBtn, pressed && pressedFeedback]}
+                        >
+                          <Text style={[styles.pickerDoneText, { color: colorActual }]}>Listo</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                  )}
                 </View>
 
                 {/* Prioridad */}
@@ -366,38 +507,128 @@ export function AddActividadModal({
                   </View>
                 </View>
 
-                {/* Recurrencia simple */}
+                {/* Recurrencia: rango de días de la semana + período (número + unidad) */}
                 <View style={styles.field}>
-                  <Text style={styles.label}>Repetir</Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.chipsScrollRow}
-                  >
-                    {[
-                      { label: 'No repetir', valor: null },
-                      { label: 'Todos los días', valor: 'diario' as PatronRecurrencia },
-                      { label: 'Días laborables', valor: 'dias_semana' as PatronRecurrencia },
-                      { label: 'Semanalmente', valor: 'semanal' as PatronRecurrencia },
-                      { label: 'Mensualmente', valor: 'mensual' as PatronRecurrencia },
-                    ].map((item) => {
-                      const isSel = patronRecurrencia === item.valor
+                  <View style={styles.repeatHeaderRow}>
+                    <Text style={styles.label}>Repetir de día a día</Text>
+                    {diaInicio !== null && (
+                      <Pressable onPress={limpiarRangoDias} hitSlop={6}>
+                        <Text style={[styles.repeatClear, { color: colorActual }]}>No repetir</Text>
+                      </Pressable>
+                    )}
+                  </View>
+
+                  <View style={styles.diasRow}>
+                    {DIAS_SEMANA.map((dia) => {
+                      const seleccionado = diasSeleccionados.includes(dia.valor)
+                      const esExtremo = dia.valor === diaInicio || dia.valor === diaFin
                       return (
                         <Pressable
-                          key={item.label}
-                          onPress={() => setPatronRecurrencia(item.valor)}
-                          style={[
-                            styles.chip,
-                            isSel && [styles.chipActive, { backgroundColor: colorActual }],
+                          key={dia.valor}
+                          onPress={() => seleccionarDiaRango(dia.valor)}
+                          style={({ pressed }) => [
+                            styles.diaChip,
+                            seleccionado && { backgroundColor: colorActual },
+                            !seleccionado && styles.diaChipLibre,
+                            esExtremo && styles.diaChipExtremo,
+                            pressed && pressedFeedback,
                           ]}
                         >
-                          <Text style={[styles.chipText, isSel && styles.chipTextActive]}>
-                            {item.label}
+                          <Text
+                            style={[
+                              styles.diaChipText,
+                              seleccionado && styles.diaChipTextActive,
+                            ]}
+                          >
+                            {dia.label}
                           </Text>
                         </Pressable>
                       )
                     })}
-                  </ScrollView>
+                  </View>
+
+                  <Text style={styles.repeatSummary}>{etiquetaRangoDias}</Text>
+
+                  {diaInicio !== null && (
+                    <>
+                      {/* Selector de número */}
+                      <View style={styles.periodoRow}>
+                        <Text style={styles.periodoLabel}>Durante</Text>
+                        <View
+                          style={[
+                            styles.stepper,
+                            repeticionUnidad === 'indefinido' && styles.stepperDisabled,
+                          ]}
+                        >
+                          <Pressable
+                            onPress={() =>
+                              repeticionUnidad !== 'indefinido' &&
+                              setRepeticionNumero((n) => Math.max(1, n - 1))
+                            }
+                            style={({ pressed }) => [styles.stepperBtn, pressed && pressedFeedback]}
+                            disabled={repeticionUnidad === 'indefinido'}
+                          >
+                            <MaterialIcons
+                              name="remove"
+                              size={16}
+                              color={
+                                repeticionUnidad === 'indefinido'
+                                  ? PALETTE.outline
+                                  : PALETTE.ink
+                              }
+                            />
+                          </Pressable>
+                          <Text
+                            style={[
+                              styles.stepperValue,
+                              repeticionUnidad === 'indefinido' && styles.stepperValueDisabled,
+                            ]}
+                          >
+                            {repeticionUnidad === 'indefinido' ? '—' : repeticionNumero}
+                          </Text>
+                          <Pressable
+                            onPress={() =>
+                              repeticionUnidad !== 'indefinido' &&
+                              setRepeticionNumero((n) => Math.min(99, n + 1))
+                            }
+                            style={({ pressed }) => [styles.stepperBtn, pressed && pressedFeedback]}
+                            disabled={repeticionUnidad === 'indefinido'}
+                          >
+                            <MaterialIcons
+                              name="add"
+                              size={16}
+                              color={
+                                repeticionUnidad === 'indefinido'
+                                  ? PALETTE.outline
+                                  : PALETTE.ink
+                              }
+                            />
+                          </Pressable>
+                        </View>
+                      </View>
+
+                      {/* Selector de unidad */}
+                      <View style={styles.chipsRow}>
+                        {UNIDADES_REPETICION.map((u) => {
+                          const isSel = repeticionUnidad === u.valor
+                          return (
+                            <Pressable
+                              key={u.valor}
+                              onPress={() => setRepeticionUnidad(u.valor)}
+                              style={[
+                                styles.chip,
+                                isSel && [styles.chipActive, { backgroundColor: colorActual }],
+                              ]}
+                            >
+                              <Text style={[styles.chipText, isSel && styles.chipTextActive]}>
+                                {u.label}
+                              </Text>
+                            </Pressable>
+                          )
+                        })}
+                      </View>
+                    </>
+                  )}
                 </View>
               </View>
             )}
@@ -574,6 +805,82 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: PALETTE.onSurfaceVariant,
+  },
+  repeatHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  repeatClear: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  diasRow: {
+    flexDirection: 'row',
+    gap: 5,
+  },
+  diaChip: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: RADIUS.interior,
+  },
+  diaChipLibre: {
+    backgroundColor: PALETTE.surfaceContainer,
+  },
+  diaChipExtremo: {
+    ...SHADOW.card,
+  },
+  diaChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: PALETTE.ink,
+  },
+  diaChipTextActive: {
+    color: PALETTE.onAccent,
+    fontWeight: '800',
+  },
+  repeatSummary: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: PALETTE.onSurfaceVariant,
+    marginTop: 2,
+  },
+  periodoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  periodoLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: PALETTE.onSurfaceVariant,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: PALETTE.surfaceContainer,
+    borderRadius: RADIUS.interior,
+    overflow: 'hidden',
+  },
+  stepperDisabled: {
+    opacity: 0.55,
+  },
+  stepperBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  stepperValue: {
+    minWidth: 34,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '800',
+    color: PALETTE.ink,
+  },
+  stepperValueDisabled: {
+    color: PALETTE.outline,
   },
   input: {
     backgroundColor: PALETTE.surfaceContainer,

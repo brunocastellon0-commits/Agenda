@@ -7,7 +7,7 @@ import { navigateToTab } from '../navigation/tabs';
 import { PALETTE, SHADOW, pressedFeedback } from '../theme/theme';
 import { TintPill } from '../components/TintPill';
 import { Billetera, getBilleteras, createBilletera } from '../repositories/billetera';
-import { Movimiento, getMovimientosByBilletera, registrarMovimiento, transferir, signoMovimiento } from '../repositories/movimientos';
+import { Movimiento, getMovimientosByBilletera, registrarMovimiento, transferir, signoMovimiento, eliminarMovimiento } from '../repositories/movimientos';
 import { Pago, getPagosByBilletera, createPago, deletePago, pagarPago } from '../repositories/pagos';
 import { getUsuarios } from '../repositories/usuario';
 import { WalletCarousel } from '../components/WalletCarrousel';
@@ -334,6 +334,27 @@ export default function BilleteraScreen({ navigation }: Props) {
     }
   };
 
+  const handleEliminarMovimiento = async (id: number) => {
+    if (!cuentaActiva?.id) return;
+    Alert.alert('Eliminar movimiento', '¿Seguro que quieres eliminar este movimiento? El saldo se revertirá.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await eliminarMovimiento(id);
+            await cargarBilleteras();
+            await refrescarDetalle(cuentaActiva.id!);
+          } catch (error) {
+            console.error('Error al eliminar el movimiento:', error);
+            Alert.alert('Error', 'No se pudo eliminar el movimiento.');
+          }
+        },
+      },
+    ]);
+  };
+
   if (loadingInicial) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -403,6 +424,7 @@ export default function BilleteraScreen({ navigation }: Props) {
                   divisa={cuentaActiva.divisa}
                   nombresBilletera={nombresBilletera}
                   cargando={cargandoDetalle}
+                  onDelete={handleEliminarMovimiento}
                 />
               </>
             )}

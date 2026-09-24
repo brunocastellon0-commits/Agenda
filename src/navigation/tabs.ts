@@ -1,7 +1,7 @@
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, TabAnimParams } from './types';
 
-export const TAB_ORDER = ['billetera', 'inicio', 'actividades', 'metricas', 'perfil'] as const;
+export const TAB_ORDER = ['billetera', 'inicio', 'actividades', 'metricas', 'comida'] as const;
 export type TabKey = (typeof TAB_ORDER)[number];
 
 type ScreenNavegable = Exclude<keyof RootStackParamList, 'Home'>;
@@ -10,6 +10,7 @@ const TAB_TO_SCREEN: Partial<Record<TabKey, ScreenNavegable>> = {
   billetera: 'Billetera',
   actividades: 'Actividades',
   metricas: 'Metricas',
+  comida: 'Comida',
 };
 
 export function tabIndex(tab: TabKey): number {

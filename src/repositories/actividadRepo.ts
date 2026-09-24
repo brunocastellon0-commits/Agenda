@@ -7,6 +7,7 @@ export type EstadoPlanificacion = 'planificada' | 'reprogramada' | 'cancelada';
 export type EstadoEjecucion = 'pendiente' | 'en_progreso' | 'completada' | 'no_realizada';
 export type Prioridad = 'critica' | 'alta' | 'normal' | 'baja';
 export type PatronRecurrencia = 'diario' | 'dias_semana' | 'semanal' | 'mensual';
+export type UnidadRepeticion = 'dias' | 'semanas' | 'meses' | 'indefinido';
 
 // ─── Interfaces ─────────────────────────────────────────────
 
@@ -38,6 +39,8 @@ export interface Actividad {
   notas?: string | null;
   regla_recurrencia_id?: number | null;
   instancia_origen_id?: number | null;
+  /** 1 = soft-delete (no se muestra ni se regenera por recurrencia) */
+  eliminada?: number | null;
 }
 
 export interface ActividadSesion {
@@ -64,7 +67,16 @@ export interface ReglaRecurrencia {
   tipo_actividad_id: number;
   proyecto_id?: number | null;
   patron: PatronRecurrencia;
-  dias_semana?: string | null; // '1,3,5'
+  dias_semana?: string | null; // '1,3,5' — legacy
+  /** 0 = la repetición terminó / fue desactivada */
+  activa?: number | null;
+  /** Rango de días de la semana (lunes=1 ... domingo=7, con wraparound) */
+  dia_inicio?: number | null;
+  dia_fin?: number | null;
+  /** Fecha base del período (YYYY-MM-DD) */
+  fecha_inicio?: string | null;
+  repeticion_numero?: number | null;
+  repeticion_unidad?: UnidadRepeticion | null;
   hora?: string | null;
   duracion_estimada_min?: number | null;
   prioridad: Prioridad;
@@ -186,7 +198,8 @@ export const getIndicadoresMes = async (
       `SELECT a.fecha, a.completado, a.prioridad, t.color
        FROM actividad a
        JOIN tipo_actividad t ON a.tipo_actividad_id = t.id
-       WHERE a.fecha LIKE ? AND a.tipo_actividad_id = ?`,
+       WHERE a.fecha LIKE ? AND a.tipo_actividad_id = ?
+         AND (a.eliminada IS NULL OR a.eliminada = 0)`,
       [patronFecha, tipoId]
     );
   } else {
@@ -194,7 +207,8 @@ export const getIndicadoresMes = async (
       `SELECT a.fecha, a.completado, a.prioridad, t.color
        FROM actividad a
        JOIN tipo_actividad t ON a.tipo_actividad_id = t.id
-       WHERE a.fecha LIKE ?`,
+       WHERE a.fecha LIKE ?
+         AND (a.eliminada IS NULL OR a.eliminada = 0)`,
       [patronFecha]
     );
   }
@@ -238,9 +252,54 @@ export const getIndicadoresMes = async (
   return resultado;
 };
 
+/**
+ * Eliminación dura (solo para borrar la serie completa u undo de posponer).
+ * Para eliminar UNA instancia usar `eliminarInstancia` (soft-delete).
+ */
 export const eliminarActividad = async (id: number): Promise<void> => {
   const db = await getDatabase();
   await db.runAsync(`DELETE FROM actividad WHERE id = ?`, [id]);
+};
+
+/**
+ * Elimina solo una instancia (soft-delete). La fila se conserva con eliminada=1
+ * para que `generarInstanciasRecurrentes` no la vuelva a crear.
+ */
+export const eliminarInstancia = async (id: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE actividad SET eliminada = 1 WHERE id = ?`, [id]);
+};
+
+/** Deshace un soft-delete (Undo de "Eliminar solo este día"). */
+export const restaurarInstancia = async (id: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE actividad SET eliminada = 0 WHERE id = ?`, [id]);
+};
+
+/**
+ * Elimina la serie completa: todas las instancias de la regla + la propia regla.
+ */
+export const eliminarSerie = async (reglaId: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync(`DELETE FROM actividad WHERE regla_recurrencia_id = ?`, [reglaId]);
+    await txn.runAsync(`DELETE FROM regla_recurrencia WHERE id = ?`, [reglaId]);
+  });
+};
+
+/**
+ * Termina la repetición sin borrar nada: marca la regla como inactiva.
+ * Las instancias ya generadas permanecen; no se generarán nuevas.
+ */
+export const desactivarRegla = async (reglaId: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE regla_recurrencia SET activa = 0 WHERE id = ?`, [reglaId]);
+};
+
+/** Re-activa una regla (Undo de "Terminar repetición"). */
+export const activarRegla = async (reglaId: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(`UPDATE regla_recurrencia SET activa = 1 WHERE id = ?`, [reglaId]);
 };
 
 export const marcarEnProgreso = async (id: number): Promise<void> => {
@@ -264,12 +323,16 @@ export const getActividades = async (
   const db = await getDatabase();
   if (tipoId !== undefined) {
     return db.getAllAsync<Actividad>(
-      `SELECT * FROM actividad WHERE fecha = ? AND tipo_actividad_id = ? ORDER BY completado, id DESC`,
+      `SELECT * FROM actividad WHERE fecha = ? AND tipo_actividad_id = ?
+         AND (eliminada IS NULL OR eliminada = 0)
+       ORDER BY completado, id DESC`,
       [fecha, tipoId]
     );
   }
   return db.getAllAsync<Actividad>(
-    `SELECT * FROM actividad WHERE fecha = ? ORDER BY completado, id DESC`,
+    `SELECT * FROM actividad WHERE fecha = ?
+       AND (eliminada IS NULL OR eliminada = 0)
+     ORDER BY completado, id DESC`,
     [fecha]
   );
 };
@@ -368,6 +431,7 @@ export const getActividadesAtrasadas = async (): Promise<Actividad[]> => {
   return db.getAllAsync<Actividad>(
     `SELECT * FROM actividad
      WHERE fecha < ?
+       AND (eliminada IS NULL OR eliminada = 0)
        AND estado_ejecucion IN ('pendiente', 'en_progreso')
        AND (estado_planificacion IS NULL OR estado_planificacion = 'planificada')
      ORDER BY fecha DESC, hora ASC`,
@@ -695,6 +759,11 @@ export const crearReglaRecurrencia = async (data: {
   proyecto_id?: number | null;
   patron: PatronRecurrencia;
   dias_semana?: string | null;
+  dia_inicio?: number | null;
+  dia_fin?: number | null;
+  fecha_inicio?: string | null;
+  repeticion_numero?: number | null;
+  repeticion_unidad?: UnidadRepeticion | null;
   hora?: string | null;
   duracion_estimada_min?: number | null;
   prioridad?: Prioridad;
@@ -702,14 +771,21 @@ export const crearReglaRecurrencia = async (data: {
   const db = await getDatabase();
   const result = await db.runAsync(
     `INSERT INTO regla_recurrencia
-     (titulo, tipo_actividad_id, proyecto_id, patron, dias_semana, hora, duracion_estimada_min, prioridad)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+     (titulo, tipo_actividad_id, proyecto_id, patron, dias_semana,
+      activa, dia_inicio, dia_fin, fecha_inicio, repeticion_numero, repeticion_unidad,
+      hora, duracion_estimada_min, prioridad)
+     VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       data.titulo.trim(),
       data.tipo_actividad_id,
       data.proyecto_id ?? null,
       data.patron,
       data.dias_semana ?? null,
+      data.dia_inicio ?? null,
+      data.dia_fin ?? null,
+      data.fecha_inicio ?? null,
+      data.repeticion_numero ?? null,
+      data.repeticion_unidad ?? null,
       data.hora?.trim() || null,
       data.duracion_estimada_min ?? null,
       data.prioridad ?? 'normal',
@@ -740,13 +816,15 @@ export const generarInstanciasRecurrentes = async (
 
   for (const regla of reglas) {
     if (!regla.id) continue;
+    // Regla desactivada (repetición terminada): no genera instancias nuevas
+    if (regla.activa === 0) continue;
 
     const fechas = calcularFechasRecurrencia(regla, hoy, horizonteDias);
 
     for (const fecha of fechas) {
-      // Verificar que no exista ya una instancia para esta regla+fecha
+      // Guard ANTI-BUG: si ya existe la fila (incluso con eliminada=1), jamás recrear.
       const existente = await db.getFirstAsync<{ id: number }>(
-        `SELECT id FROM actividad WHERE regla_recurrencia_id = ? AND fecha = ?`,
+        `SELECT id FROM actividad WHERE regla_recurrencia_id = ? AND fecha = ? LIMIT 1`,
         [regla.id, fecha]
       );
       if (existente) continue;
@@ -768,47 +846,96 @@ export const generarInstanciasRecurrentes = async (
   return creadas;
 };
 
+function isoDeFecha(dia: Date): string {
+  const y = dia.getFullYear();
+  const m = String(dia.getMonth() + 1).padStart(2, '0');
+  const d = String(dia.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function diasDelRango(diaInicio: number, diaFin: number): number[] {
+  const dias: number[] = [];
+  if (diaInicio <= diaFin) {
+    for (let d = diaInicio; d <= diaFin; d++) dias.push(d);
+  } else {
+    // Wraparound (ej. Vie=5 → Lun=1: 5,6,7,1)
+    for (let d = diaInicio; d <= 7; d++) dias.push(d);
+    for (let d = 1; d <= diaFin; d++) dias.push(d);
+  }
+  return dias;
+}
+
+function calcularFechaFin(regla: ReglaRecurrencia): Date | null {
+  const { fecha_inicio, repeticion_numero, repeticion_unidad } = regla;
+  if (!fecha_inicio || !repeticion_numero || !repeticion_unidad) return null;
+  if (repeticion_unidad === 'indefinido') return null;
+
+  const base = new Date(`${fecha_inicio}T00:00:00`);
+  if (Number.isNaN(base.getTime())) return null;
+  const n = repeticion_numero;
+
+  const fin = new Date(base.getTime());
+  switch (repeticion_unidad) {
+    case 'dias':
+      fin.setDate(fin.getDate() + n - 1);
+      break;
+    case 'semanas':
+      fin.setDate(fin.getDate() + n * 7 - 1);
+      break;
+    case 'meses':
+      fin.setMonth(fin.getMonth() + n);
+      fin.setDate(fin.getDate() - 1);
+      break;
+  }
+  return fin;
+}
+
 function calcularFechasRecurrencia(
   regla: ReglaRecurrencia,
   desde: Date,
   horizonteDias: number
 ): string[] {
   const fechas: string[] = [];
+  const fechaFin = calcularFechaFin(regla);
+  const diasPermitidos: number[] | null =
+    regla.dia_inicio != null && regla.dia_fin != null
+      ? diasDelRango(regla.dia_inicio, regla.dia_fin)
+      : regla.dias_semana && regla.dias_semana.trim().length > 0
+        ? regla.dias_semana.split(',').map(Number).filter((d) => Number.isFinite(d))
+        : null;
+
   for (let i = 0; i < horizonteDias; i++) {
     const dia = new Date(desde.getFullYear(), desde.getMonth(), desde.getDate() + i);
     const diaSemana = dia.getDay() === 0 ? 7 : dia.getDay(); // Lunes=1 ... Domingo=7
+    const fechaISO = isoDeFecha(dia);
+
+    // No generar antes del inicio del período
+    if (regla.fecha_inicio && fechaISO < regla.fecha_inicio) continue;
+    // No generar después del fin del período
+    if (fechaFin && dia > fechaFin) continue;
 
     let incluir = false;
-    switch (regla.patron) {
-      case 'diario':
-        incluir = true;
-        break;
-      case 'dias_semana': {
-        const diasPermitidos = (regla.dias_semana ?? '').split(',').map(Number);
-        incluir = diasPermitidos.includes(diaSemana);
-        break;
+
+    if (diasPermitidos && diasPermitidos.length > 0) {
+      incluir = diasPermitidos.includes(diaSemana);
+    } else {
+      // Patrones legacy sin rango explícito
+      switch (regla.patron) {
+        case 'diario':
+          incluir = true;
+          break;
+        case 'semanal':
+          incluir = diaSemana === 1;
+          break;
+        case 'mensual':
+          incluir = dia.getDate() === desde.getDate();
+          break;
+        default:
+          incluir = true;
       }
-      case 'semanal':
-        // Por defecto, generar en el mismo día de la semana que la regla fue creada
-        // o en lunes si no se especificó
-        if (regla.dias_semana) {
-          const diasPermitidos = regla.dias_semana.split(',').map(Number);
-          incluir = diasPermitidos.includes(diaSemana);
-        } else {
-          incluir = diaSemana === 1; // Lunes
-        }
-        break;
-      case 'mensual':
-        incluir = dia.getDate() === desde.getDate();
-        break;
     }
 
-    if (incluir) {
-      const y = dia.getFullYear();
-      const m = String(dia.getMonth() + 1).padStart(2, '0');
-      const d = String(dia.getDate()).padStart(2, '0');
-      fechas.push(`${y}-${m}-${d}`);
-    }
+    if (incluir) fechas.push(fechaISO);
   }
   return fechas;
 }

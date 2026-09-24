@@ -94,3 +94,29 @@ export const transferir = async (m: {
         );
     });
 };
+
+export const eliminarMovimiento = async (id: number): Promise<void> => {
+    const db = await getDatabase();
+    await db.withExclusiveTransactionAsync(async (txn) => {
+        const mov = await txn.getFirstAsync<Movimiento>(
+            `SELECT * FROM movimientos_finan WHERE id = ?`,
+            [id]
+        );
+        if (!mov) return;
+
+        // Revertir el saldo según el tipo
+        if (mov.tipo === 'ingreso') {
+            await txn.runAsync(`UPDATE billetera SET monto = monto - ? WHERE id = ?`, [mov.monto, mov.billetera_id]);
+        } else if (mov.tipo === 'egreso') {
+            await txn.runAsync(`UPDATE billetera SET monto = monto + ? WHERE id = ?`, [mov.monto, mov.billetera_id]);
+        } else if (mov.tipo === 'transferencia' && mov.billetera_destino_id) {
+            // Revertir la salida en origen
+            await txn.runAsync(`UPDATE billetera SET monto = monto + ? WHERE id = ?`, [mov.monto, mov.billetera_id]);
+            // Revertir la entrada en destino
+            await txn.runAsync(`UPDATE billetera SET monto = monto - ? WHERE id = ?`, [mov.monto, mov.billetera_destino_id]);
+        }
+
+        // Borrar el movimiento
+        await txn.runAsync(`DELETE FROM movimientos_finan WHERE id = ?`, [id]);
+    });
+};

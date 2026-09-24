@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS actividad (
     descripcion TEXT,
     hora TEXT,
     completado INTEGER DEFAULT 0, -- 0 para falso, 1 para verdadero en SQLite
+    eliminada INTEGER DEFAULT 0,  -- soft-delete: 1 = eliminada (evita regeneración recurrente)
     proyecto_id INTEGER,
     FOREIGN KEY (tipo_actividad_id) REFERENCES tipo_actividad(id) ON DELETE CASCADE,
     FOREIGN KEY (proyecto_id) REFERENCES proyecto(id) ON DELETE SET NULL
@@ -133,7 +134,13 @@ CREATE TABLE IF NOT EXISTS regla_recurrencia (
     tipo_actividad_id INTEGER NOT NULL,
     proyecto_id INTEGER,
     patron TEXT NOT NULL, -- 'diario' | 'dias_semana' | 'semanal' | 'mensual'
-    dias_semana TEXT,     -- ej. '1,3,5' (lunes=1 ... domingo=7)
+    dias_semana TEXT,     -- ej. '1,3,5' (lunes=1 ... domingo=7) — legacy
+    activa INTEGER DEFAULT 1,            -- 0 = terminó / desactivada (no genera más instancias)
+    dia_inicio INTEGER,                 -- rango de días (lunes=1 ... domingo=7)
+    dia_fin INTEGER,
+    fecha_inicio TEXT,                  -- fecha base del período (YYYY-MM-DD)
+    repeticion_numero INTEGER,          -- cantidad del período (ej. 4)
+    repeticion_unidad TEXT,             -- 'dias' | 'semanas' | 'meses' | 'indefinido'
     hora TEXT,
     duracion_estimada_min INTEGER,
     prioridad TEXT DEFAULT 'normal',
@@ -179,4 +186,43 @@ CREATE TABLE IF NOT EXISTS actividad_historial_estado (
 );
 
 CREATE INDEX IF NOT EXISTS idx_historial_actividad ON actividad_historial_estado(actividad_id);
+
+-- 15. Seguimiento de Hábitos (Actividades recurrentes que el usuario decide controlar)
+CREATE TABLE IF NOT EXISTS seguimiento_habito (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    regla_recurrencia_id INTEGER NOT NULL UNIQUE,
+    fecha_creacion TEXT NOT NULL,
+    activo INTEGER DEFAULT 1,
+    FOREIGN KEY (regla_recurrencia_id) REFERENCES regla_recurrencia(id) ON DELETE CASCADE
+);
+
+-- 16. Biblioteca de Alimentos
+CREATE TABLE IF NOT EXISTS comida_alimento (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    categoria TEXT NOT NULL,
+    tags TEXT
+);
+
+-- 17. Registro de Comidas
+CREATE TABLE IF NOT EXISTS comida_registro (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    hora TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    nota TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_comida_fecha ON comida_registro(fecha);
+
+-- 18. Items del Registro de Comidas
+CREATE TABLE IF NOT EXISTS comida_registro_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    registro_id INTEGER NOT NULL,
+    alimento_id INTEGER NOT NULL,
+    FOREIGN KEY (registro_id) REFERENCES comida_registro(id) ON DELETE CASCADE,
+    FOREIGN KEY (alimento_id) REFERENCES comida_alimento(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_comida_item_reg ON comida_registro_item(registro_id);
 `;

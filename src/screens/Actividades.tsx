@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  Alert,
   ActivityIndicator,
   Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
+  Text,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -13,20 +15,24 @@ import { StackScreenProps } from '@react-navigation/stack'
 import { MaterialIcons } from '@expo/vector-icons'
 import { RootStackParamList } from '../navigation/types'
 import { navigateToTab } from '../navigation/tabs'
-import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme'
+import { PALETTE, RADIUS, pressedFeedback, tint } from '../theme/theme'
 import {
   Actividad,
   ActividadSubtarea,
   IndicadorDiaMes,
   TipoActividad,
+  activarRegla,
   asegurarTiposIniciales,
   contarSubtareas,
   crearActividad,
   crearReglaRecurrencia,
   crearSubtarea,
   crearTipoActividad,
+  desactivarRegla,
   deshacerReprogramarLote,
   eliminarActividad,
+  eliminarInstancia,
+  eliminarSerie,
   eliminarSubtarea,
   generarInstanciasRecurrentes,
   getActividades,
@@ -37,6 +43,7 @@ import {
   marcarEnProgreso,
   reprogramarActividad,
   reprogramarLote,
+  restaurarInstancia,
   toggleActividad,
   toggleSubtarea,
   transicionarEstado,
@@ -52,11 +59,12 @@ import { saludoPorHora } from '../utils/semana'
 import { GreetingHeader } from '../components/GreetingHeader'
 import { AreaSelector } from '../components/AreaSelector'
 import { MonthlyCalendar } from '../components/MonthlyCalendar'
-import { ActivityTimeline } from '../components/ActivityTimeline'
-import { AllAreasDayView } from '../components/AllAreasDayView'
+import { DaySchedule } from '../components/DaySchedule'
+import { ActivityActionsSheet } from '../components/ActivityActionsSheet'
 import { AreaVerticalTransition } from '../components/AreaVerticalTransition'
 import { ContextSelectorSheet } from '../components/ContextSelectorSheet'
 import { AddActividadModal, NuevaActividadData } from '../components/AddActividadModal'
+import { DeleteActividadModal, ModoEliminacion } from '../components/DeleteActividadModal'
 import { NuevoTipoActividadModal } from '../components/NuevoTipoActividadModal'
 import { PostponeModal } from '../components/PostponeModal'
 import { SubtaskListModal } from '../components/SubtaskListModal'
@@ -105,8 +113,11 @@ export default function ActividadesScreen({ navigation }: Props) {
   const [isAddOpen, setAddOpen] = useState(false)
   const [isNuevoTipoOpen, setNuevoTipoOpen] = useState(false)
   const [postponeActividad, setPostponeActividad] = useState<Actividad | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Actividad | null>(null)
   const [subtasksTarget, setSubtasksTarget] = useState<Actividad | null>(null)
   const [subtareasList, setSubtareasList] = useState<ActividadSubtarea[]>([])
+  /** Bottom-sheet de acciones (abierta desde bloques/chips de DaySchedule) */
+  const [actionsTarget, setActionsTarget] = useState<Actividad | null>(null)
 
   // Deshacer (Undo)
   const [undoState, setUndoState] = useState<{
@@ -119,7 +130,17 @@ export default function ActividadesScreen({ navigation }: Props) {
   const cargarDatos = useCallback(async () => {
     try {
       await asegurarTiposIniciales()
-      await generarInstanciasRecurrentes(14)
+
+      // Horizonte de generación recurrente: cubrir el día seleccionado y el mes visible
+      const finMesVisible = new Date(currentMonth.year, currentMonth.monthIndex + 1, 0)
+      const finPeriodo = new Date(
+        Math.max(
+          parseFechaISO(selectedDayId).getTime(),
+          finMesVisible.getTime()
+        )
+      )
+      const diasHastaFin = Math.ceil((finPeriodo.getTime() - hoy.getTime()) / 86400000)
+      await generarInstanciasRecurrentes(Math.max(14, diasHastaFin + 7))
 
       const tiposCargados = await getTiposActividad()
       setTipos(tiposCargados)
@@ -246,12 +267,17 @@ export default function ActividadesScreen({ navigation }: Props) {
 
   // Interacción: Completar actividad con Deshacer
   const handleToggle = (actividadId: number) => {
-    const act = actividades.find((a) => a.id === actividadId)
+    const act =
+      actividades.find((a) => a.id === actividadId) ??
+      atrasadas.find((a) => a.id === actividadId)
     if (!act) return
 
     const estadoAnterior = act.completado
-    // Optimista
+    // Optimista (día seleccionado y/o atrasadas)
     setActividades((prev) =>
+      prev.map((a) => (a.id === actividadId ? { ...a, completado: a.completado === 1 ? 0 : 1 } : a))
+    )
+    setAtrasadas((prev) =>
       prev.map((a) => (a.id === actividadId ? { ...a, completado: a.completado === 1 ? 0 : 1 } : a))
     )
 
@@ -281,38 +307,59 @@ export default function ActividadesScreen({ navigation }: Props) {
       .catch((err) => console.error('Error al cambiar en progreso:', err))
   }
 
-  // Interacción: Eliminar con Deshacer
-  const handleDelete = (actividadId: number) => {
-    const act = actividades.find((a) => a.id === actividadId)
-    if (!act) return
+  const handleConfirmDelete = async (modo: ModoEliminacion) => {
+    const act = deleteTarget
+    setDeleteTarget(null)
+    if (!act || act.id === undefined) return
 
-    setActividades((prev) => prev.filter((a) => a.id !== actividadId))
-
-    eliminarActividad(actividadId)
-      .then(() => {
-        cargarDatos()
+    try {
+      if (modo === 'solo_dia') {
+        const id = act.id
+        // Soft-delete optimista (la fila queda con eliminada=1 → no se regenera)
+        setActividades((prev) => prev.filter((a) => a.id !== id))
+        await eliminarInstancia(id)
+        await cargarDatos()
         setUndoState({
           visible: true,
           mensaje: 'Actividad eliminada',
           onUndo: async () => {
-            await crearActividad({
-              fecha: act.fecha,
-              tipo_actividad_id: act.tipo_actividad_id,
-              titulo: act.titulo,
-              descripcion: act.descripcion,
-              hora: act.hora,
-              duracion_estimada_min: act.duracion_estimada_min,
-              prioridad: act.prioridad ?? 'normal',
-              contexto: act.contexto,
-            })
-            cargarDatos()
+            await restaurarInstancia(id)
+            await cargarDatos()
           },
         })
+        return
+      }
+
+      if (modo === 'todas_repeticiones') {
+        if (act.regla_recurrencia_id == null) {
+          Alert.alert('No se pudo eliminar', 'Esta actividad no pertenece a una serie.')
+          return
+        }
+        await eliminarSerie(act.regla_recurrencia_id)
+        await cargarDatos()
+        return
+      }
+
+      // modo === 'terminar_repeticion'
+      if (act.regla_recurrencia_id == null) {
+        Alert.alert('No se pudo eliminar', 'Esta actividad no pertenece a una serie.')
+        return
+      }
+      const reglaId = act.regla_recurrencia_id
+      await desactivarRegla(reglaId)
+      await cargarDatos()
+      setUndoState({
+        visible: true,
+        mensaje: 'Repetición terminada',
+        onUndo: async () => {
+          await activarRegla(reglaId)
+          await cargarDatos()
+        },
       })
-      .catch((err) => {
-        console.error('Error al eliminar actividad:', err)
-        cargarDatos()
-      })
+    } catch (err) {
+      console.error('Error al eliminar actividad:', err)
+      cargarDatos()
+    }
   }
 
   // Interacción: Posponer con Deshacer
@@ -382,6 +429,18 @@ export default function ActividadesScreen({ navigation }: Props) {
     setSubtareasList(list)
   }
 
+  // Separar actividades con hora (agenda horaria) y sin hora (chips)
+  const { programadas, sinHora } = useMemo(() => {
+    const conHora: Actividad[] = []
+    const sinH: Actividad[] = []
+    for (const a of actividades) {
+      if (a.hora) conHora.push(a)
+      else sinH.push(a)
+    }
+    conHora.sort((a, b) => (a.hora! < b.hora! ? -1 : a.hora! > b.hora! ? 1 : 0))
+    return { programadas: conHora, sinHora: sinH }
+  }, [actividades])
+
   const handleToggleSubtarea = async (id: number) => {
     await toggleSubtarea(id)
     if (subtasksTarget?.id) {
@@ -407,9 +466,42 @@ export default function ActividadesScreen({ navigation }: Props) {
     await cargarDatos()
   }
 
-  // Creación rápida de actividad
+  // Creación rápida de actividad (con recurrencia opcional por rango de días)
   const handleAddActividad = async (data: NuevaActividadData) => {
     try {
+      const esRecurrente =
+        data.dia_inicio != null && data.dia_fin != null
+
+      let reglaId: number | undefined
+      if (esRecurrente) {
+        // Derivar lista de días del rango (compat con columna legacy dias_semana)
+        const dias: number[] = []
+        const a = data.dia_inicio!
+        const b = data.dia_fin!
+        if (a <= b) {
+          for (let d = a; d <= b; d++) dias.push(d)
+        } else {
+          for (let d = a; d <= 7; d++) dias.push(d)
+          for (let d = 1; d <= b; d++) dias.push(d)
+        }
+
+        reglaId = await crearReglaRecurrencia({
+          titulo: data.titulo,
+          tipo_actividad_id: data.tipo_actividad_id,
+          patron: 'dias_semana',
+          dias_semana: dias.join(','),
+          dia_inicio: a,
+          dia_fin: b,
+          fecha_inicio: data.fecha,
+          repeticion_numero: data.repeticion_numero ?? null,
+          repeticion_unidad: data.repeticion_unidad ?? 'indefinido',
+          hora: data.hora,
+          duracion_estimada_min: data.duracion_estimada_min,
+          prioridad: data.prioridad ?? 'normal',
+        })
+      }
+
+      // Crear la instancia base vinculada a la regla (evita duplicado el mismo día)
       await crearActividad({
         fecha: data.fecha,
         tipo_actividad_id: data.tipo_actividad_id,
@@ -418,19 +510,13 @@ export default function ActividadesScreen({ navigation }: Props) {
         hora: data.hora,
         duracion_estimada_min: data.duracion_estimada_min,
         prioridad: data.prioridad,
+        regla_recurrencia_id: reglaId ?? null,
       })
 
-      // Si seleccionó recurrencia
-      if (data.patron_recurrencia) {
-        await crearReglaRecurrencia({
-          titulo: data.titulo,
-          tipo_actividad_id: data.tipo_actividad_id,
-          patron: data.patron_recurrencia,
-          hora: data.hora,
-          duracion_estimada_min: data.duracion_estimada_min,
-          prioridad: data.prioridad ?? 'normal',
-        })
-        await generarInstanciasRecurrentes(14)
+      if (reglaId) {
+        const finMes = new Date(currentMonth.year, currentMonth.monthIndex + 1, 0)
+        const diasHastaFin = Math.ceil((finMes.getTime() - hoy.getTime()) / 86400000)
+        await generarInstanciasRecurrentes(Math.max(14, diasHastaFin + 7))
       }
 
       setAddOpen(false)
@@ -493,38 +579,42 @@ export default function ActividadesScreen({ navigation }: Props) {
         onGoToToday={handleGoToToday}
       />
 
-      {/* Vista principal: Todas las áreas (Triage) vs Filtro individual */}
-      {activeTipoId === undefined ? (
-        <AllAreasDayView
-          actividades={actividades}
-          atrasadas={atrasadas}
-          tipos={tipos}
-          esHoy={selectedDayId === hoyISO}
-          ahoraRef={ahoraRef}
-          subtareasCounts={subtareasCounts}
-          onToggle={handleToggle}
-          onPostpone={(act) => setPostponeActividad(act)}
-          onToggleEnProgreso={handleToggleEnProgreso}
-          onDelete={handleDelete}
-          onPressSubtareas={handleOpenSubtasks}
-          onAddPress={() => setAddOpen(true)}
-          onReprogramarLoteAtrasadas={handleReprogramarLoteAtrasadas}
-        />
-      ) : (
-        <ActivityTimeline
-          actividades={actividades}
-          tipos={tipos}
-          accentColor={accentColor}
-          areaFiltrada={tipoSeleccionado}
-          subtareasCounts={subtareasCounts}
-          onToggle={handleToggle}
-          onPostpone={(act) => setPostponeActividad(act)}
-          onToggleEnProgreso={handleToggleEnProgreso}
-          onDelete={handleDelete}
-          onPressSubtareas={handleOpenSubtasks}
-          onAddPress={() => setAddOpen(true)}
-        />
-      )}
+      {/* Agregar actividad: barra tonal entre calendario y agenda (reemplaza al FAB) */}
+      <Pressable
+        onPress={() => setAddOpen(true)}
+        style={({ pressed }) => [
+          styles.addBar,
+          { backgroundColor: tint(accentColor, 0.12) },
+          pressed && pressedFeedback,
+        ]}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel="Agregar actividad"
+      >
+        <MaterialIcons name="add" size={18} color={accentColor} />
+        <Text style={[styles.addBarText, { color: accentColor }]}>Agregar actividad</Text>
+      </Pressable>
+
+      {/* Agenda horaria del día (matriz temporal 30min) */}
+      <DaySchedule
+        programadas={programadas}
+        sinHora={sinHora}
+        atrasadas={atrasadas}
+        tipos={tipos}
+        esHoy={selectedDayId === hoyISO}
+        fechaISO={selectedDayId}
+        ahoraRef={ahoraRef}
+        cargando={loading}
+        accentColor={accentColor}
+        subtareasCounts={subtareasCounts}
+        onToggle={handleToggle}
+        onToggleEnProgreso={handleToggleEnProgreso}
+        onPostpone={(act) => setPostponeActividad(act)}
+        onDelete={(act) => setDeleteTarget(act)}
+        onPressSubtareas={handleOpenSubtasks}
+        onOpenActions={(act) => setActionsTarget(act)}
+        onReprogramarLoteAtrasadas={handleReprogramarLoteAtrasadas}
+      />
     </ScrollView>
   )
 
@@ -548,19 +638,6 @@ export default function ActividadesScreen({ navigation }: Props) {
       >
         {renderPageArea()}
       </AreaVerticalTransition>
-
-      {/* Botón flotante FAB para creación ultra-rápida (+) */}
-      <Pressable
-        onPress={() => setAddOpen(true)}
-        style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: accentColor },
-          pressed && pressedFeedback,
-        ]}
-        accessibilityLabel="Agregar actividad"
-      >
-        <MaterialIcons name="add" size={26} color={PALETTE.onAccent} />
-      </Pressable>
 
       {/* Barra de navegación inferior persistente (tab Actividades activa) */}
       <BottomNavigationBar
@@ -594,12 +671,41 @@ export default function ActividadesScreen({ navigation }: Props) {
         onSave={handleAddActividad}
       />
 
+      {/* Bottom-sheet de acciones de una actividad (cierre → delay → otro modal) */}
+      <ActivityActionsSheet
+        visible={!!actionsTarget}
+        actividad={actionsTarget}
+        tipo={
+          actionsTarget
+            ? tipos.find((t) => t.id === actionsTarget.tipo_actividad_id)
+            : undefined
+        }
+        subtareaProgreso={
+          actionsTarget?.id !== undefined ? subtareasCounts[actionsTarget.id] : null
+        }
+        onClose={() => setActionsTarget(null)}
+        onToggle={handleToggle}
+        onToggleEnProgreso={handleToggleEnProgreso}
+        onPostpone={(act) => setPostponeActividad(act)}
+        onSubtareas={handleOpenSubtasks}
+        onDelete={(act) => setDeleteTarget(act)}
+      />
+
       {/* Modal de posponer contextual */}
       <PostponeModal
         visible={!!postponeActividad}
         actividad={postponeActividad}
         onClose={() => setPostponeActividad(null)}
         onPostpone={handleConfirmPostpone}
+      />
+
+      {/* Modal de eliminación (día / todas las repeticiones / terminar repetición) */}
+      <DeleteActividadModal
+        visible={!!deleteTarget}
+        actividad={deleteTarget}
+        accentColor={accentColor}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteTarget(null)}
       />
 
       {/* Modal de subtareas */}
@@ -653,16 +759,16 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
     gap: 14,
   },
-  fab: {
-    position: 'absolute',
-    bottom: 86,
-    right: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+  addBar: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    ...SHADOW.card,
-    zIndex: 90,
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: RADIUS.buttons,
+  },
+  addBarText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
 })

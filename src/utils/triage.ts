@@ -58,13 +58,13 @@ export const setUltimaAreaUsadaId = (id: number | null): void => {
 // ─── Helpers internos ───────────────────────────────────────
 
 /** Convierte "HH:MM" a minutos desde medianoche (0–1440). */
-function horaAMinutos(hora: string): number {
+export function horaAMinutos(hora: string): number {
   const [h, m] = hora.split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
 }
 
 /** Convierte minutos a "HH:MM". */
-function minutosAHora(min: number): string {
+export function minutosAHora(min: number): string {
   const h = Math.floor(min / 60);
   const m = min % 60;
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;

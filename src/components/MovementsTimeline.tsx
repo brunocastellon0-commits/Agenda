@@ -17,6 +17,7 @@ interface Props {
   divisa: string;
   nombresBilletera: Record<number, string>;
   cargando?: boolean;
+  onDelete?: (id: number) => void;
 }
 
 function fechaParts(fechaHora: string): { anio: number; mes: number; dia: number; mesIndex: number } {
@@ -82,7 +83,7 @@ interface GrupoMes {
   totalEgresos: number;
 }
 
-export function MovementsTimeline({ movimientos, cuentaId, divisa, nombresBilletera, cargando }: Props) {
+export function MovementsTimeline({ movimientos, cuentaId, divisa, nombresBilletera, cargando, onDelete }: Props) {
   const [expandidos, setExpandidos] = useState<Set<number>>(new Set());
 
   const { meses, total } = useMemo(() => {
@@ -279,6 +280,15 @@ export function MovementsTimeline({ movimientos, cuentaId, divisa, nombresBillet
                               {signo}{formatMonto(m.monto)}
                             </Text>
                           </View>
+                          {onDelete && (
+                            <Pressable
+                              style={({ pressed }) => [styles.deleteButton, pressed && pressedFeedback]}
+                              onPress={() => onDelete(id)}
+                            >
+                              <MaterialIcons name="delete-outline" size={16} color={PALETTE.categorias.critico} />
+                              <Text style={styles.deleteButtonText}>Eliminar movimiento</Text>
+                            </Pressable>
+                          )}
                         </View>
                       )}
                     </Pressable>
@@ -435,5 +445,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: PALETTE.onSurfaceVariant,
     flex: 1,
+  },
+  deleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: tint(PALETTE.categorias.critico, 0.1),
+  },
+  deleteButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: PALETTE.categorias.critico,
   },
 });
