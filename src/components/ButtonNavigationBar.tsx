@@ -13,11 +13,11 @@ interface Props {
 }
 
 const TABS: { key: TabKey; label: string; icon: keyof typeof MaterialIcons.glyphMap }[] = [
-  { key: 'billetera', label: 'Billetera', icon: 'account-balance-wallet' },
-  { key: 'inicio', label: 'Inicio', icon: 'home' },
   { key: 'actividades', label: 'Actividades', icon: 'checklist' },
   { key: 'metricas', label: 'Métricas', icon: 'bar-chart' },
+  { key: 'inicio', label: 'Inicio', icon: 'home' },
   { key: 'comida', label: 'Comida', icon: 'restaurant' },
+  { key: 'billetera', label: 'Finanzas', icon: 'account-balance-wallet' },
 ];
 
 export function BottomNavigationBar({ activeTab, onSelectTab }: Props) {

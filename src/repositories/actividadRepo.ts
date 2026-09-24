@@ -1,4 +1,5 @@
 import { getDatabase } from '../database/db';
+import { scheduleActividadNotification, cancelActividadNotification } from '../services/notificaciones';
 import { PALETTE } from '../theme/theme';
 
 // ─── Tipos de estado ────────────────────────────────────────
@@ -259,6 +260,7 @@ export const getIndicadoresMes = async (
 export const eliminarActividad = async (id: number): Promise<void> => {
   const db = await getDatabase();
   await db.runAsync(`DELETE FROM actividad WHERE id = ?`, [id]);
+  await cancelActividadNotification(id);
 };
 
 /**
@@ -268,6 +270,7 @@ export const eliminarActividad = async (id: number): Promise<void> => {
 export const eliminarInstancia = async (id: number): Promise<void> => {
   const db = await getDatabase();
   await db.runAsync(`UPDATE actividad SET eliminada = 1 WHERE id = ?`, [id]);
+  await cancelActividadNotification(id);
 };
 
 /** Deshace un soft-delete (Undo de "Eliminar solo este día"). */
@@ -281,10 +284,16 @@ export const restaurarInstancia = async (id: number): Promise<void> => {
  */
 export const eliminarSerie = async (reglaId: number): Promise<void> => {
   const db = await getDatabase();
+  const rows = await db.getAllAsync<{ id: number }>(`SELECT id FROM actividad WHERE regla_recurrencia_id = ?`, [reglaId]);
+  
   await db.withExclusiveTransactionAsync(async (txn) => {
     await txn.runAsync(`DELETE FROM actividad WHERE regla_recurrencia_id = ?`, [reglaId]);
     await txn.runAsync(`DELETE FROM regla_recurrencia WHERE id = ?`, [reglaId]);
   });
+
+  for (const row of rows) {
+    await cancelActividadNotification(row.id);
+  }
 };
 
 /**
@@ -378,7 +387,14 @@ export const crearActividad = async (data: {
       data.instancia_origen_id ?? null,
     ]
   );
-  return result.lastInsertRowId;
+  const nuevoId = result.lastInsertRowId;
+
+  if (data.fecha && data.hora) {
+    const isoDate = `${data.fecha}T${data.hora}:00`;
+    await scheduleActividadNotification(nuevoId, data.titulo.trim(), isoDate);
+  }
+
+  return nuevoId;
 };
 
 export const toggleActividad = async (id: number): Promise<void> => {
@@ -412,6 +428,10 @@ export const toggleActividad = async (id: number): Promise<void> => {
       new Date().toISOString(),
     ]
   );
+
+  if (nuevoCompletado === 1) {
+    await cancelActividadNotification(id);
+  }
 };
 
 // ─── Atrasadas y Reprogramación en Lote ─────────────────────

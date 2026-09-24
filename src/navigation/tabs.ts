@@ -1,7 +1,7 @@
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, TabAnimParams } from './types';
 
-export const TAB_ORDER = ['billetera', 'inicio', 'actividades', 'metricas', 'comida'] as const;
+export const TAB_ORDER = ['actividades', 'metricas', 'inicio', 'comida', 'billetera'] as const;
 export type TabKey = (typeof TAB_ORDER)[number];
 
 type ScreenNavegable = Exclude<keyof RootStackParamList, 'Home'>;

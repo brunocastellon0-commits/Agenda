@@ -18,6 +18,8 @@ import {
   asegurarAlimentosIniciales
 } from '../repositories/comidaRepo';
 
+import { scheduleRecordatorioComida } from '../services/notificaciones';
+
 import FoodQualityCard from '../components/FoodQualityCard';
 import MealTimeline from '../components/MealTimeline';
 import AddMealSheet from '../components/AddMealSheet';
@@ -51,6 +53,11 @@ export default function ComidaScreen({ navigation }: Props) {
       const iso = toISO(fecha);
       const reg = await getRegistrosDia(iso);
       setRegistros(reg);
+
+      const hoyISO = toISO(new Date());
+      if (iso === hoyISO) {
+        scheduleRecordatorioComida(reg.length > 0).catch(console.error);
+      }
 
       // Análisis semanal hasta hoy
       const inicio = new Date(fecha);
