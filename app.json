@@ -20,11 +20,6 @@
     "web": {
       "favicon": "./assets/relok.png"
     },
-    "splash": {
-      "image": "./assets/relok.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFFFFF"
-    },
     "plugins": [
       "expo-sqlite",
       "@react-native-community/datetimepicker",
@@ -41,6 +36,16 @@
               "previewImage": "./assets/relok.png"
             }
           ]
+        }
+      ],
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/relok.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "imageWidth": 200
         }
       ]
     ],
