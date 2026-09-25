@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Modal, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PALETTE, SHADOW, pressedFeedback } from '../theme/theme';
@@ -113,7 +113,7 @@ export function EditProfileModal({ visible, currentProfile, onClose, onSave }: P
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
         <View style={[styles.modalContent, { paddingBottom: Math.max(24, insets.bottom + 12) }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Editar Perfil</Text>
@@ -152,7 +152,7 @@ export function EditProfileModal({ visible, currentProfile, onClose, onSave }: P
             </TintPill>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

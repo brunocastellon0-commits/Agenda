@@ -1,4 +1,6 @@
 import { getDatabase } from '../database/db';
+import { ALIMENTOS_INICIALES, PLATOS_INICIALES, SeedAlimento } from '../database/seeds/alimentos';
+import { UnidadMedida } from '../utils/nutricion';
 
 export type TipoComida = 'desayuno' | 'almuerzo' | 'merienda' | 'cena' | 'otro';
 
@@ -6,89 +8,93 @@ export interface Alimento {
   id?: number;
   nombre: string;
   categoria: string;
-  tags: string[]; // Parcheado desde/hacia JSON
+  tags: string[];
+  kcal_100: number;
+  prot_100: number;
+  carb_100: number;
+  grasa_100: number;
+  fibra_100?: number;
+  unidad_base: UnidadMedida;
+  origen: 'sistema' | 'usuario';
+  activo: number;
+  es_receta: number;
+  descripcion?: string;
+}
+
+export interface RegistroComidaItem {
+  id?: number;
+  registro_id?: number;
+  alimento_id: number;
+  alimento?: Alimento;
+  cantidad: number;
+  unidad: UnidadMedida;
+  kcal_est: number;
+  prot_est: number;
+  carb_est: number;
+  grasa_est: number;
 }
 
 export interface RegistroComida {
   id?: number;
-  fecha: string; // YYYY-MM-DD
-  hora: string;  // HH:MM
+  fecha: string;
+  hora: string;
   tipo: TipoComida;
   nota?: string | null;
-  items: Alimento[];
+  items: RegistroComidaItem[];
 }
-
-const ALIMENTOS_INICIALES = [
-  { nombre: 'Huevos', categoria: 'proteina', tags: ['proteina'] },
-  { nombre: 'Pollo', categoria: 'proteina', tags: ['proteina'] },
-  { nombre: 'Carne de res', categoria: 'proteina', tags: ['proteina'] },
-  { nombre: 'Pescado', categoria: 'proteina', tags: ['proteina'] },
-  { nombre: 'Lentejas', categoria: 'proteina', tags: ['proteina', 'fibra'] },
-  { nombre: 'Arroz', categoria: 'cereal', tags: ['carbohidrato'] },
-  { nombre: 'Pan', categoria: 'cereal', tags: ['carbohidrato'] },
-  { nombre: 'Avena', categoria: 'cereal', tags: ['carbohidrato', 'fibra'] },
-  { nombre: 'Brócoli', categoria: 'vegetal', tags: ['vegetal', 'fibra'] },
-  { nombre: 'Ensalada', categoria: 'vegetal', tags: ['vegetal', 'fibra'] },
-  { nombre: 'Tomate', categoria: 'vegetal', tags: ['vegetal'] },
-  { nombre: 'Banana', categoria: 'fruta', tags: ['fruta'] },
-  { nombre: 'Manzana', categoria: 'fruta', tags: ['fruta', 'fibra'] },
-  { nombre: 'Yogurt', categoria: 'lacteo', tags: ['proteina', 'lacteo'] },
-  { nombre: 'Queso', categoria: 'lacteo', tags: ['grasa', 'lacteo'] },
-  { nombre: 'Nueces', categoria: 'grasa', tags: ['grasa', 'fibra'] },
-  { nombre: 'Gaseosa', categoria: 'bebida', tags: ['azucar', 'ultraprocesado'] },
-  { nombre: 'Pizza', categoria: 'mixto', tags: ['ultraprocesado', 'carbohidrato', 'grasa'] },
-  { nombre: 'Hamburguesa', categoria: 'mixto', tags: ['ultraprocesado', 'proteina', 'grasa'] },
-  { nombre: 'Café', categoria: 'bebida', tags: ['bebida'] },
-  { nombre: 'Agua', categoria: 'bebida', tags: ['bebida'] },
-];
 
 export const asegurarAlimentosIniciales = async (): Promise<void> => {
   const db = await getDatabase();
-  const row = await db.getFirstAsync<{ total: number }>(`SELECT COUNT(*) AS total FROM comida_alimento`);
-  if (row && row.total > 0) return;
+  const todos = [...ALIMENTOS_INICIALES, ...PLATOS_INICIALES];
 
-  for (const al of ALIMENTOS_INICIALES) {
-    await db.runAsync(
-      `INSERT INTO comida_alimento (nombre, categoria, tags) VALUES (?, ?, ?)`,
-      [al.nombre, al.categoria, JSON.stringify(al.tags)]
-    );
-  }
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const al of todos) {
+      const existe = await txn.getFirstAsync<{ id: number }>(
+        `SELECT id FROM comida_alimento WHERE nombre = ?`,
+        [al.nombre]
+      );
+      if (existe) {
+        await txn.runAsync(
+          `UPDATE comida_alimento SET 
+            kcal_100 = ?, prot_100 = ?, carb_100 = ?, grasa_100 = ?, fibra_100 = ?,
+            unidad_base = ?, origen = ?
+           WHERE id = ?`,
+          [al.kcal_100, al.prot_100, al.carb_100, al.grasa_100, al.fibra_100 ?? null, al.unidad_base, al.origen, existe.id]
+        );
+      } else {
+        await txn.runAsync(
+          `INSERT INTO comida_alimento 
+            (nombre, categoria, tags, kcal_100, prot_100, carb_100, grasa_100, fibra_100, unidad_base, origen, activo, es_receta) 
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
+          [al.nombre, al.categoria, JSON.stringify(al.tags), al.kcal_100, al.prot_100, al.carb_100, al.grasa_100, al.fibra_100 ?? null, al.unidad_base, al.origen]
+        );
+      }
+    }
+  });
 };
 
 export const buscarAlimentos = async (query: string = ''): Promise<Alimento[]> => {
   const db = await getDatabase();
-  let rows: { id: number; nombre: string; categoria: string; tags: string }[];
+  let rows;
   
   if (query.trim().length > 0) {
-    rows = await db.getAllAsync(
-      `SELECT * FROM comida_alimento WHERE nombre LIKE ? ORDER BY nombre`,
+    rows = await db.getAllAsync<any>(
+      `SELECT * FROM comida_alimento WHERE nombre LIKE ? AND activo = 1 ORDER BY nombre LIMIT 30`,
       [`%${query}%`]
     );
   } else {
-    // Si no hay query, devolvemos algunos aleatorios o recientes (acá limitamos a 20)
-    rows = await db.getAllAsync(`SELECT * FROM comida_alimento ORDER BY nombre LIMIT 20`);
+    rows = await db.getAllAsync<any>(`SELECT * FROM comida_alimento WHERE activo = 1 ORDER BY nombre LIMIT 20`);
   }
 
   return rows.map(r => ({
-    id: r.id,
-    nombre: r.nombre,
-    categoria: r.categoria,
-    tags: JSON.parse(r.tags)
+    ...r,
+    tags: JSON.parse(r.tags || '[]')
   }));
-};
-
-export const crearAlimento = async (nombre: string, categoria: string = 'otro', tags: string[] = []): Promise<number> => {
-  const db = await getDatabase();
-  const result = await db.runAsync(
-    `INSERT INTO comida_alimento (nombre, categoria, tags) VALUES (?, ?, ?)`,
-    [nombre.trim(), categoria, JSON.stringify(tags)]
-  );
-  return result.lastInsertRowId;
 };
 
 export const getRegistrosDia = async (fecha: string): Promise<RegistroComida[]> => {
   const db = await getDatabase();
-  const registrosDb = await db.getAllAsync<{ id: number; fecha: string; hora: string; tipo: string; nota: string | null }>(
+  const registrosDb = await db.getAllAsync<any>(
     `SELECT * FROM comida_registro WHERE fecha = ? ORDER BY hora ASC`,
     [fecha]
   );
@@ -96,9 +102,10 @@ export const getRegistrosDia = async (fecha: string): Promise<RegistroComida[]> 
   const resultado: RegistroComida[] = [];
 
   for (const reg of registrosDb) {
-    const itemsDb = await db.getAllAsync<{ id: number; nombre: string; categoria: string; tags: string }>(
-      `SELECT a.* FROM comida_alimento a
-       JOIN comida_registro_item i ON a.id = i.alimento_id
+    const itemsDb = await db.getAllAsync<any>(
+      `SELECT i.*, a.nombre, a.categoria, a.tags, a.unidad_base
+       FROM comida_registro_item i
+       JOIN comida_alimento a ON i.alimento_id = a.id
        WHERE i.registro_id = ?`,
       [reg.id]
     );
@@ -111,9 +118,21 @@ export const getRegistrosDia = async (fecha: string): Promise<RegistroComida[]> 
       nota: reg.nota,
       items: itemsDb.map(i => ({
         id: i.id,
-        nombre: i.nombre,
-        categoria: i.categoria,
-        tags: JSON.parse(i.tags)
+        registro_id: i.registro_id,
+        alimento_id: i.alimento_id,
+        cantidad: i.cantidad || 1,
+        unidad: i.unidad || i.unidad_base || 'unidad',
+        kcal_est: i.kcal_est || 0,
+        prot_est: i.prot_est || 0,
+        carb_est: i.carb_est || 0,
+        grasa_est: i.grasa_est || 0,
+        alimento: {
+          id: i.alimento_id,
+          nombre: i.nombre,
+          categoria: i.categoria,
+          tags: JSON.parse(i.tags || '[]'),
+          kcal_100: 0, prot_100: 0, carb_100: 0, grasa_100: 0, unidad_base: i.unidad_base, origen: 'sistema', activo: 1, es_receta: 0
+        }
       }))
     });
   }
@@ -121,7 +140,7 @@ export const getRegistrosDia = async (fecha: string): Promise<RegistroComida[]> 
   return resultado;
 };
 
-export const registrarComida = async (data: { fecha: string; hora: string; tipo: TipoComida; nota?: string; alimentoIds: number[] }): Promise<number> => {
+export const registrarComida = async (data: { fecha: string; hora: string; tipo: TipoComida; nota?: string; items: Omit<RegistroComidaItem, 'id' | 'registro_id'>[] }): Promise<number> => {
   const db = await getDatabase();
   let registroId = 0;
   await db.withExclusiveTransactionAsync(async (txn) => {
@@ -131,10 +150,10 @@ export const registrarComida = async (data: { fecha: string; hora: string; tipo:
     );
     registroId = res.lastInsertRowId;
 
-    for (const alId of data.alimentoIds) {
+    for (const item of data.items) {
       await txn.runAsync(
-        `INSERT INTO comida_registro_item (registro_id, alimento_id) VALUES (?, ?)`,
-        [registroId, alId]
+        `INSERT INTO comida_registro_item (registro_id, alimento_id, cantidad, unidad, kcal_est, prot_est, carb_est, grasa_est) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [registroId, item.alimento_id, item.cantidad, item.unidad, item.kcal_est, item.prot_est, item.carb_est, item.grasa_est]
       );
     }
   });
@@ -149,20 +168,19 @@ export const eliminarRegistroComida = async (id: number): Promise<void> => {
 // --- ANÁLISIS ---
 
 export interface AnalisisAlimentacion {
-  calidadGeneral: number; // 0 a 10
+  calidadGeneral: number;
   desglose: {
-    proteina: number; // 0 a 1
-    vegetales: number; // 0 a 1
-    frutas: number; // 0 a 1
-    ultraprocesados: number; // 0 a 1 (1 = muchos ultraprocesados -> impacta negativamente)
+    proteina: number;
+    vegetales: number;
+    frutas: number;
+    ultraprocesados: number;
   };
   tendencias: string[];
 }
 
 export const analizarRango = async (inicio: string, fin: string): Promise<AnalisisAlimentacion> => {
   const db = await getDatabase();
-  // Obtener todas las comidas en el rango
-  const registros = await db.getAllAsync<{ id: number; fecha: string; hora: string; tipo: string }>(
+  const registros = await db.getAllAsync<any>(
     `SELECT * FROM comida_registro WHERE fecha BETWEEN ? AND ?`,
     [inicio, fin]
   );
@@ -180,13 +198,10 @@ export const analizarRango = async (inicio: string, fin: string): Promise<Analis
       [reg.id]
     );
 
-    let hasProtein = false;
-    let hasVeggie = false;
-    let hasFruit = false;
-    let hasUltra = false;
+    let hasProtein = false, hasVeggie = false, hasFruit = false, hasUltra = false;
 
     itemsDb.forEach(item => {
-      const tags: string[] = JSON.parse(item.tags);
+      const tags: string[] = JSON.parse(item.tags || '[]');
       if (tags.includes('proteina')) hasProtein = true;
       if (tags.includes('vegetal')) hasVeggie = true;
       if (tags.includes('fruta')) hasFruit = true;
@@ -199,65 +214,55 @@ export const analizarRango = async (inicio: string, fin: string): Promise<Analis
     if (hasUltra) comidasConUltraprocesados++;
   }
 
-  const totalComidas = registros.length || 1; // evitar division por 0
-
+  const totalComidas = registros.length || 1;
   const proteinaScore = comidasConProteina / totalComidas;
   const vegetalesScore = comidasConVegetales / totalComidas;
   const frutasScore = comidasConFruta / totalComidas;
   const ultraScore = comidasConUltraprocesados / totalComidas;
 
-  // Indice super simple: 
-  // Base 5. Suma hasta 2 por proteina, 2 por vegetales, 1 por frutas.
-  // Resta hasta 2 por ultraprocesados.
   let calidad = 5 + (proteinaScore * 2) + (vegetalesScore * 2) + (frutasScore * 1) - (ultraScore * 2);
   calidad = Math.max(0, Math.min(10, calidad));
 
-  // Generar feedback
   const tendencias: string[] = [];
-  
-  if (registros.length === 0) {
-    // Sin datos
-    return {
-      calidadGeneral: 0,
-      desglose: { proteina: 0, vegetales: 0, frutas: 0, ultraprocesados: 0 },
-      tendencias: []
-    };
-  }
+  if (registros.length === 0) return { calidadGeneral: 0, desglose: { proteina: 0, vegetales: 0, frutas: 0, ultraprocesados: 0 }, tendencias: [] };
 
-  if (proteinaScore > 0.6) {
-    tendencias.push("Has incluido proteína en la mayoría de tus comidas.");
-  } else if (proteinaScore < 0.3) {
-    tendencias.push("Tus comidas han sido bajas en proteína en general.");
-  }
+  if (proteinaScore > 0.6) tendencias.push("Has incluido proteína en la mayoría de tus comidas.");
+  else if (proteinaScore < 0.3) tendencias.push("Tus comidas han sido bajas en proteína en general.");
+  if (vegetalesScore > 0.5) tendencias.push("¡Buena presencia de vegetales en tus platos!");
+  else if (vegetalesScore < 0.2) tendencias.push("Podrías intentar agregar vegetales a más comidas.");
+  if (ultraScore > 0.4) tendencias.push("Has registrado varios alimentos ultraprocesados.");
 
-  if (vegetalesScore > 0.5) {
-    tendencias.push("¡Buena presencia de vegetales en tus platos!");
-  } else if (vegetalesScore < 0.2) {
-    tendencias.push("Podrías intentar agregar vegetales a más comidas.");
-  }
-
-  if (ultraScore > 0.4) {
-    tendencias.push("Has registrado varios alimentos ultraprocesados.");
-  }
-
-  // Patrón de horarios (Cenas tarde)
-  const cenas = registros.filter(r => r.tipo === 'cena');
-  let cenasTarde = 0;
-  cenas.forEach(c => {
-    if (c.hora >= '21:30') cenasTarde++;
-  });
-  if (cenasTarde > 2) {
-    tendencias.push(`Has cenado después de las 21:30 en ${cenasTarde} ocasiones.`);
-  }
+  const cenasTarde = registros.filter(r => r.tipo === 'cena' && r.hora >= '21:30').length;
+  if (cenasTarde > 2) tendencias.push(`Has cenado después de las 21:30 en ${cenasTarde} ocasiones.`);
 
   return {
     calidadGeneral: Math.round(calidad * 10) / 10,
-    desglose: {
-      proteina: proteinaScore,
-      vegetales: vegetalesScore,
-      frutas: frutasScore,
-      ultraprocesados: ultraScore
-    },
+    desglose: { proteina: proteinaScore, vegetales: vegetalesScore, frutas: frutasScore, ultraprocesados: ultraScore },
     tendencias
   };
+};
+
+export interface ResumenNutricional {
+  kcal: number;
+  prot: number;
+  carb: number;
+  grasa: number;
+}
+
+export const getResumenDia = async (fecha: string): Promise<ResumenNutricional> => {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<{ kcal_est: number, prot_est: number, carb_est: number, grasa_est: number }>(
+    `SELECT i.kcal_est, i.prot_est, i.carb_est, i.grasa_est
+     FROM comida_registro_item i
+     JOIN comida_registro r ON i.registro_id = r.id
+     WHERE r.fecha = ?`,
+    [fecha]
+  );
+  
+  return rows.reduce((acc, curr) => ({
+    kcal: acc.kcal + (curr.kcal_est || 0),
+    prot: acc.prot + (curr.prot_est || 0),
+    carb: acc.carb + (curr.carb_est || 0),
+    grasa: acc.grasa + (curr.grasa_est || 0)
+  }), { kcal: 0, prot: 0, carb: 0, grasa: 0 });
 };

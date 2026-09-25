@@ -3,9 +3,13 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { PALETTE, SHADOW, RADIUS, pressedFeedback } from '../theme/theme';
 
+import { ResumenNutricional } from '../repositories/comidaRepo';
+import { formatEstimado } from '../utils/nutricion';
+
 interface Props {
   comidasCount: number;
-  ultimaComida: string | null; // e.g. "Cena · 21:10"
+  ultimaComida: string | null;
+  resumenNutricional: ResumenNutricional;
   onPress: () => void;
 }
 
@@ -14,7 +18,7 @@ function capitalizar(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export function FoodSummaryCard({ comidasCount, ultimaComida, onPress }: Props) {
+export function FoodSummaryCard({ comidasCount, ultimaComida, resumenNutricional, onPress }: Props) {
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && pressedFeedback]}
@@ -29,14 +33,18 @@ export function FoodSummaryCard({ comidasCount, ultimaComida, onPress }: Props) 
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.countText}>
-          {comidasCount === 0 
-            ? 'Aún no registraste comidas hoy' 
-            : `${comidasCount} comida${comidasCount > 1 ? 's' : ''} registrada${comidasCount > 1 ? 's' : ''} hoy`
-          }
-        </Text>
-        {ultimaComida && (
-          <Text style={styles.subText}>Último registro · {capitalizar(ultimaComida)}</Text>
+        {comidasCount === 0 ? (
+          <Text style={styles.countText}>Aún no registraste comidas hoy</Text>
+        ) : (
+          <>
+            <View style={styles.macroRow}>
+              <Text style={styles.kcalText}>{formatEstimado(resumenNutricional.kcal, ' kcal')}</Text>
+              <Text style={styles.macrosText}>
+                P: {formatEstimado(resumenNutricional.prot, 'g')} · C: {formatEstimado(resumenNutricional.carb, 'g')} · G: {formatEstimado(resumenNutricional.grasa, 'g')}
+              </Text>
+            </View>
+            <Text style={styles.subText}>{comidasCount} comidas · Última: {capitalizar(ultimaComida || '')}</Text>
+          </>
         )}
       </View>
     </Pressable>
@@ -77,5 +85,21 @@ const styles = StyleSheet.create({
   subText: {
     fontSize: 12,
     color: PALETTE.onSurfaceVariant,
+  },
+  macroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: 4,
+  },
+  kcalText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: PALETTE.ink,
+  },
+  macrosText: {
+    fontSize: 13,
+    color: PALETTE.onSurfaceVariant,
+    fontWeight: '500',
   },
 });

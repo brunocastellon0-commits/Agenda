@@ -74,6 +74,45 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     `UPDATE actividad SET estado_ejecucion = 'completada'
      WHERE completado = 1 AND estado_ejecucion = 'pendiente'`
   );
+
+  // -- Comida / Nutrición (Fase 4) --
+  await ensureColumn(db, 'comida_alimento', 'kcal_100', 'REAL');
+  await ensureColumn(db, 'comida_alimento', 'prot_100', 'REAL');
+  await ensureColumn(db, 'comida_alimento', 'carb_100', 'REAL');
+  await ensureColumn(db, 'comida_alimento', 'grasa_100', 'REAL');
+  await ensureColumn(db, 'comida_alimento', 'fibra_100', 'REAL');
+  await ensureColumn(db, 'comida_alimento', 'unidad_base', 'TEXT');
+  await ensureColumn(db, 'comida_alimento', 'origen', 'TEXT');
+  await ensureColumn(db, 'comida_alimento', 'activo', 'INTEGER DEFAULT 1');
+  await ensureColumn(db, 'comida_alimento', 'es_receta', 'INTEGER DEFAULT 0');
+  await ensureColumn(db, 'comida_alimento', 'descripcion', 'TEXT');
+
+  await ensureColumn(db, 'comida_registro_item', 'cantidad', 'REAL');
+  await ensureColumn(db, 'comida_registro_item', 'unidad', 'TEXT');
+  await ensureColumn(db, 'comida_registro_item', 'kcal_est', 'REAL');
+  await ensureColumn(db, 'comida_registro_item', 'prot_est', 'REAL');
+  await ensureColumn(db, 'comida_registro_item', 'carb_est', 'REAL');
+  await ensureColumn(db, 'comida_registro_item', 'grasa_est', 'REAL');
+
+  // -- Evolución Física (Fase 6) --
+  await ensureColumn(db, 'usuario', 'fecha_nacimiento', 'TEXT');
+  
+  // Migrar datos físicos de usuario a registro_fisico si la tabla está vacía
+  const fisicosCount = await db.getFirstAsync<{c: number}>(`SELECT COUNT(*) as c FROM registro_fisico`);
+  if (fisicosCount && fisicosCount.c === 0) {
+    const usuariosConDatos = await db.getAllAsync<{ci: string, peso: number, altura: number, cintura: number, cuello: number}>(
+      `SELECT ci, peso, altura, cintura, cuello FROM usuario WHERE peso > 0 OR altura > 0 OR cintura > 0`
+    );
+    const hoyIso = new Date().toISOString().split('T')[0];
+    const hoyHoraIso = new Date().toISOString();
+    for (const u of usuariosConDatos) {
+      await db.runAsync(
+        `INSERT INTO registro_fisico (ci_usuario, fecha_medicion, fecha_registro, peso, altura, cintura, cuello, activo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
+        [u.ci, hoyIso, hoyHoraIso, u.peso || null, u.altura || null, u.cintura || null, u.cuello || null]
+      );
+    }
+  }
 }
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {

@@ -175,9 +175,9 @@ export function TimeGrid({
         {ahoraVisible && (
           <View style={[styles.ahoraWrap, { top: ahoraTop }]} pointerEvents="none">
             <View style={[styles.ahoraLine, { left: LABEL_W }]} />
-            <View style={[styles.ahoraDot, { top: ahoraTop - 4, left: LABEL_W - 4 }]} />
+            <View style={[styles.ahoraDot, { top: -4, left: LABEL_W - 4 }]} />
             <View
-              style={[styles.ahoraPill, { top: ahoraTop - 9, left: LABEL_W + 8 }]}
+              style={[styles.ahoraPill, { top: -9, left: LABEL_W + 8 }]}
             >
               <Text style={styles.ahoraPillText}>
                 AHORA {minutosAHora(ahoraMin)}

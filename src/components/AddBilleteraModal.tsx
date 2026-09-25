@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Modal, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PALETTE, SHADOW, pressedFeedback } from '../theme/theme';
@@ -86,7 +86,7 @@ export function AddBilleteraModal({ visible, ciUsuario, onClose, onSave }: Props
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
         <View style={[styles.modalContent, { paddingBottom: Math.max(24, insets.bottom + 12) }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Agregar Billetera</Text>
@@ -95,7 +95,7 @@ export function AddBilleteraModal({ visible, ciUsuario, onClose, onSave }: Props
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {renderInput('Nombre', nombre, setNombre, errores.nombre)}
             {renderInput('Entidad', entidad, setEntidad, errores.entidad)}
 
@@ -133,7 +133,7 @@ export function AddBilleteraModal({ visible, ciUsuario, onClose, onSave }: Props
             </TintPill>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Modal, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PALETTE, SHADOW, pressedFeedback } from '../theme/theme';
@@ -63,7 +63,7 @@ export function PayPagoModal({ visible, pago, saldo, divisa, onClose, onSave }: 
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
         <View style={[styles.modalContent, { paddingBottom: Math.max(24, insets.bottom + 12) }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Pagar: {pago.nombre}</Text>
@@ -72,65 +72,67 @@ export function PayPagoModal({ visible, pago, saldo, divisa, onClose, onSave }: 
             </Pressable>
           </View>
 
-          <View style={styles.infoGrid}>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLabel}>Total</Text>
-              <Text style={styles.infoValor}>{signo}{formatMonto(pago.monto)}</Text>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+            <View style={styles.infoGrid}>
+              <View style={styles.infoBox}>
+                <Text style={styles.infoLabel}>Total</Text>
+                <Text style={styles.infoValor}>{signo}{formatMonto(pago.monto)}</Text>
+              </View>
+              <View style={styles.infoBox}>
+                <Text style={styles.infoLabel}>Pagado</Text>
+                <Text style={styles.infoValor}>{signo}{formatMonto(pagado)}</Text>
+              </View>
+              <View style={styles.infoBox}>
+                <Text style={styles.infoLabel}>Restante</Text>
+                <Text style={[styles.infoValor, styles.infoRestante]}>{signo}{formatMonto(restante)}</Text>
+              </View>
             </View>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLabel}>Pagado</Text>
-              <Text style={styles.infoValor}>{signo}{formatMonto(pagado)}</Text>
-            </View>
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLabel}>Restante</Text>
-              <Text style={[styles.infoValor, styles.infoRestante]}>{signo}{formatMonto(restante)}</Text>
-            </View>
-          </View>
 
-          <View style={styles.infoBox}>
-            <Text style={styles.infoLabel}>Saldo disponible</Text>
-            <Text style={styles.infoValor}>{signo}{formatMonto(saldo)}</Text>
-          </View>
-
-          {completo ? (
-            <View style={styles.completoRow}>
-              <MaterialIcons name="check-circle" size={18} color={PALETTE.ink} />
-              <Text style={styles.completoText}>
-                Este pago ya está completo{pago.tipo === 'mensual' ? ' este mes' : ''}.
-              </Text>
+            <View style={styles.infoBox}>
+              <Text style={styles.infoLabel}>Saldo disponible</Text>
+              <Text style={styles.infoValor}>{signo}{formatMonto(saldo)}</Text>
             </View>
-          ) : (
-            <>
-              <TintPill color={PALETTE.categorias.finanzas} radius={14}>
-                <Pressable style={({ pressed }) => [styles.completarButton, pressed && pressedFeedback]} onPress={handleCompletar}>
-                  <Text style={styles.completarText}>
-                    Completar ({signo}{formatMonto(restante)})
-                  </Text>
-                </Pressable>
-              </TintPill>
 
-              <View style={styles.partialGroup}>
-                <Text style={styles.inputLabel}>O abonar un monto parcial</Text>
-                <TextInput
-                  style={[styles.textInput, error !== null && styles.textInputError]}
-                  value={monto}
-                  onChangeText={(texto) => {
-                    setMonto(texto);
-                    setError(null);
-                  }}
-                  keyboardType="decimal-pad"
-                  placeholder={restante.toFixed(2)}
-                  placeholderTextColor={PALETTE.outline}
-                />
-                <TintPill color={PALETTE.categorias.trabajo} radius={14}>
-                  <Pressable style={({ pressed }) => [styles.abonarButton, pressed && pressedFeedback]} onPress={handleAbonar}>
-                    <Text style={styles.abonarText}>Abonar</Text>
+            {completo ? (
+              <View style={styles.completoRow}>
+                <MaterialIcons name="check-circle" size={18} color={PALETTE.ink} />
+                <Text style={styles.completoText}>
+                  Este pago ya está completo{pago.tipo === 'mensual' ? ' este mes' : ''}.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <TintPill color={PALETTE.categorias.finanzas} radius={14}>
+                  <Pressable style={({ pressed }) => [styles.completarButton, pressed && pressedFeedback]} onPress={handleCompletar}>
+                    <Text style={styles.completarText}>
+                      Completar ({signo}{formatMonto(restante)})
+                    </Text>
                   </Pressable>
                 </TintPill>
-                {error !== null && <Text style={styles.errorText}>{error}</Text>}
-              </View>
-            </>
-          )}
+
+                <View style={styles.partialGroup}>
+                  <Text style={styles.inputLabel}>O abonar un monto parcial</Text>
+                  <TextInput
+                    style={[styles.textInput, error !== null && styles.textInputError]}
+                    value={monto}
+                    onChangeText={(texto) => {
+                      setMonto(texto);
+                      setError(null);
+                    }}
+                    keyboardType="decimal-pad"
+                    placeholder={restante.toFixed(2)}
+                    placeholderTextColor={PALETTE.outline}
+                  />
+                  <TintPill color={PALETTE.categorias.trabajo} radius={14}>
+                    <Pressable style={({ pressed }) => [styles.abonarButton, pressed && pressedFeedback]} onPress={handleAbonar}>
+                      <Text style={styles.abonarText}>Abonar</Text>
+                    </Pressable>
+                  </TintPill>
+                  {error !== null && <Text style={styles.errorText}>{error}</Text>}
+                </View>
+              </>
+            )}
+          </ScrollView>
 
           <View style={styles.modalActions}>
             <Pressable style={({ pressed }) => [styles.cancelButton, pressed && pressedFeedback]} onPress={onClose}>
@@ -138,7 +140,7 @@ export function PayPagoModal({ visible, pago, saldo, divisa, onClose, onSave }: 
             </Pressable>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -155,6 +157,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     gap: 12,
+    maxHeight: '85%',
     ...SHADOW.modal,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

@@ -125,48 +125,94 @@ export function DayActivityBlock({
         </View>
 
         {/* Metadatos: solo si hay espacio (columna ancha + alto suficiente) */}
-        {altoParaMeta && (
-          <View style={styles.metaRow}>
-            {enProgreso && (
-              <View style={[styles.pill, { backgroundColor: tint(areaColor, 0.14) }]}>
-                <Text style={[styles.pillText, { color: areaColor }]}>En progreso</Text>
-              </View>
-            )}
-            {estaVencida && (
-              <View style={[styles.pill, { backgroundColor: PALETTE.categorias.critico }]}>
-                <Text style={[styles.pillText, styles.pillTextOnFill]}>Atrasada</Text>
-              </View>
-            )}
-            {esCritica && (
-              <View style={[styles.pill, { backgroundColor: PALETTE.categorias.critico }]}>
-                <Text style={[styles.pillText, styles.pillTextOnFill]}>Crítica</Text>
-              </View>
-            )}
-            {esAlta && !esCritica && (
-              <View
-                style={[styles.pill, { backgroundColor: tint(PALETTE.categorias.importante, 0.16) }]}
-              >
-                <Text style={[styles.pillText, { color: PALETTE.categorias.importante }]}>
-                  Alta
-                </Text>
-              </View>
-            )}
-            {!!tipo && width >= 170 && (
-              <View style={[styles.pill, { backgroundColor: tint(areaColor, 0.1) }]}>
-                <View style={[styles.pillDot, { backgroundColor: areaColor }]} />
-                <Text style={[styles.pillText, { color: areaColor }]}>{tipo.nombre}</Text>
-              </View>
-            )}
-            {subtareaProgreso && subtareaProgreso.total > 0 && width >= 150 && (
-              <View style={[styles.pill, { backgroundColor: tint(areaColor, 0.1) }]}>
-                <MaterialIcons name="checklist" size={11} color={areaColor} />
-                <Text style={[styles.pillText, { color: areaColor }]}>
-                  {subtareaProgreso.completadas}/{subtareaProgreso.total}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
+        {altoParaMeta && (() => {
+          // Construir pills en orden de prioridad: estado > prioridad > área > subtareas
+          type PillDef = { key: string; node: React.ReactNode }
+          const pills: PillDef[] = []
+
+          if (enProgreso) {
+            pills.push({
+              key: 'progreso',
+              node: (
+                <View style={[styles.pill, { backgroundColor: tint(areaColor, 0.14) }]}>
+                  <Text style={[styles.pillText, { color: areaColor }]}>En progreso</Text>
+                </View>
+              ),
+            })
+          }
+          if (estaVencida) {
+            pills.push({
+              key: 'atrasada',
+              node: (
+                <View style={[styles.pill, { backgroundColor: PALETTE.categorias.critico }]}>
+                  <Text style={[styles.pillText, styles.pillTextOnFill]}>Atrasada</Text>
+                </View>
+              ),
+            })
+          }
+          if (esCritica) {
+            pills.push({
+              key: 'critica',
+              node: (
+                <View style={[styles.pill, { backgroundColor: PALETTE.categorias.critico }]}>
+                  <Text style={[styles.pillText, styles.pillTextOnFill]}>Crítica</Text>
+                </View>
+              ),
+            })
+          }
+          if (esAlta && !esCritica) {
+            pills.push({
+              key: 'alta',
+              node: (
+                <View
+                  style={[styles.pill, { backgroundColor: tint(PALETTE.categorias.importante, 0.16) }]}
+                >
+                  <Text style={[styles.pillText, { color: PALETTE.categorias.importante }]}>
+                    Alta
+                  </Text>
+                </View>
+              ),
+            })
+          }
+          if (!!tipo && width >= 170) {
+            pills.push({
+              key: 'area',
+              node: (
+                <View style={[styles.pill, { backgroundColor: tint(areaColor, 0.1) }]}>
+                  <View style={[styles.pillDot, { backgroundColor: areaColor }]} />
+                  <Text style={[styles.pillText, { color: areaColor }]}>{tipo.nombre}</Text>
+                </View>
+              ),
+            })
+          }
+          if (subtareaProgreso && subtareaProgreso.total > 0 && width >= 150) {
+            pills.push({
+              key: 'subtareas',
+              node: (
+                <View style={[styles.pill, { backgroundColor: tint(areaColor, 0.1) }]}>
+                  <MaterialIcons name="checklist" size={11} color={areaColor} />
+                  <Text style={[styles.pillText, { color: areaColor }]}>
+                    {subtareaProgreso.completadas}/{subtareaProgreso.total}
+                  </Text>
+                </View>
+              ),
+            })
+          }
+
+          // Limitar pills según ancho disponible para evitar desbordamiento
+          const maxPills = width < 140 ? 1 : width < 200 ? 2 : 3
+          const visibles = pills.slice(0, maxPills)
+
+          if (visibles.length === 0) return null
+
+          return (
+            <View style={styles.metaRow}>
+              {visibles.map((p) => (
+                <React.Fragment key={p.key}>{p.node}</React.Fragment>
+              ))}
+            </View>
+          )
+        })()}
       </View>
     </Pressable>
   )

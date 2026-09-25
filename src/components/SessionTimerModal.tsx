@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View, TextInput } from 'react-native'
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
 import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme'
@@ -116,68 +116,72 @@ export function SessionTimerModal({
             <Text style={[styles.subtitle, { color: accentColor }]}>{actividadTitulo}</Text>
           </View>
 
-          {timerState !== 'finished' ? (
-            <View style={styles.timerContainer}>
-              <Text style={styles.timerText}>{formatTime(elapsedMs)}</Text>
-              
-              <View style={styles.controlsRow}>
-                {timerState === 'idle' && (
-                  <Pressable
-                    style={({ pressed }) => [styles.btnPrimary, { backgroundColor: accentColor }, pressed && pressedFeedback]}
-                    onPress={handleStart}
-                  >
-                    <MaterialIcons name="play-arrow" size={24} color={PALETTE.onAccent} />
-                    <Text style={styles.btnPrimaryText}>Iniciar</Text>
-                  </Pressable>
-                )}
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {timerState !== 'finished' ? (
+                <View style={styles.timerContainer}>
+                  <Text style={styles.timerText}>{formatTime(elapsedMs)}</Text>
+                  
+                  <View style={styles.controlsRow}>
+                    {timerState === 'idle' && (
+                      <Pressable
+                        style={({ pressed }) => [styles.btnPrimary, { backgroundColor: accentColor }, pressed && pressedFeedback]}
+                        onPress={handleStart}
+                      >
+                        <MaterialIcons name="play-arrow" size={24} color={PALETTE.onAccent} />
+                        <Text style={styles.btnPrimaryText}>Iniciar</Text>
+                      </Pressable>
+                    )}
 
-                {(timerState === 'running' || timerState === 'paused') && (
-                  <>
-                    <Pressable
-                      style={({ pressed }) => [styles.btnSecondary, pressed && pressedFeedback]}
-                      onPress={timerState === 'running' ? handlePause : handleStart}
-                    >
-                      <MaterialIcons name={timerState === 'running' ? 'pause' : 'play-arrow'} size={24} color={PALETTE.ink} />
-                      <Text style={styles.btnSecondaryText}>{timerState === 'running' ? 'Pausar' : 'Reanudar'}</Text>
-                    </Pressable>
+                    {(timerState === 'running' || timerState === 'paused') && (
+                      <>
+                        <Pressable
+                          style={({ pressed }) => [styles.btnSecondary, pressed && pressedFeedback]}
+                          onPress={timerState === 'running' ? handlePause : handleStart}
+                        >
+                          <MaterialIcons name={timerState === 'running' ? 'pause' : 'play-arrow'} size={24} color={PALETTE.ink} />
+                          <Text style={styles.btnSecondaryText}>{timerState === 'running' ? 'Pausar' : 'Reanudar'}</Text>
+                        </Pressable>
 
+                        <Pressable
+                          style={({ pressed }) => [styles.btnPrimary, { backgroundColor: accentColor }, pressed && pressedFeedback]}
+                          onPress={handleFinishSession}
+                        >
+                          <MaterialIcons name="stop" size={24} color={PALETTE.onAccent} />
+                          <Text style={styles.btnPrimaryText}>Finalizar</Text>
+                        </Pressable>
+                      </>
+                    )}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.finishContainer}>
+                  <Text style={styles.summaryText}>Tiempo enfocado: {formatTime(elapsedMs)}</Text>
+                  
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Notas de la sesión (opcional)</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={notas}
+                      onChangeText={setNotas}
+                      placeholder="¿Qué lograste?"
+                      placeholderTextColor={PALETTE.onSurfaceVariant}
+                      multiline
+                    />
+                  </View>
+
+                  <View style={styles.actions}>
                     <Pressable
                       style={({ pressed }) => [styles.btnPrimary, { backgroundColor: accentColor }, pressed && pressedFeedback]}
-                      onPress={handleFinishSession}
+                      onPress={handleSaveAndClose}
                     >
-                      <MaterialIcons name="stop" size={24} color={PALETTE.onAccent} />
-                      <Text style={styles.btnPrimaryText}>Finalizar</Text>
+                      <Text style={styles.btnPrimaryText}>Guardar sesión</Text>
                     </Pressable>
-                  </>
-                )}
-              </View>
-            </View>
-          ) : (
-            <View style={styles.finishContainer}>
-              <Text style={styles.summaryText}>Tiempo enfocado: {formatTime(elapsedMs)}</Text>
-              
-              <View style={styles.field}>
-                <Text style={styles.label}>Notas de la sesión (opcional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={notas}
-                  onChangeText={setNotas}
-                  placeholder="¿Qué lograste?"
-                  placeholderTextColor={PALETTE.onSurfaceVariant}
-                  multiline
-                />
-              </View>
-
-              <View style={styles.actions}>
-                <Pressable
-                  style={({ pressed }) => [styles.btnPrimary, { backgroundColor: accentColor }, pressed && pressedFeedback]}
-                  onPress={handleSaveAndClose}
-                >
-                  <Text style={styles.btnPrimaryText}>Guardar sesión</Text>
-                </Pressable>
-              </View>
-            </View>
-          )}
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -198,6 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: PALETTE.surfaceContainerLowest,
     paddingHorizontal: 20,
     paddingTop: 20,
+    maxHeight: '90%',
     ...SHADOW.modal,
   },
   header: {

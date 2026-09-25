@@ -6,6 +6,7 @@ import BilleteraScreen from '../screens/Billetera';
 import ActividadesScreen from '../screens/Actividades';
 import MetricasScreen from '../screens/Metricas';
 import ComidaScreen from '../screens/Comida';
+import EstadoScreen from '../screens/Estado';
 import { RootStackParamList } from './types';
 import { PALETTE } from '../theme/theme';
 import { SER_ESPEC_TRANSICION, interpoladorTab } from './transition';
@@ -18,7 +19,7 @@ export default function AppNavigator() {
       <Stack.Navigator
         initialRouteName="Home"
         screenOptions={{
-          gestureEnabled: false,
+          gestureEnabled: true,
           transitionSpec: SER_ESPEC_TRANSICION,
           cardStyle: { backgroundColor: PALETTE.surface },
           headerStyle: { backgroundColor: PALETTE.surface },
@@ -65,6 +66,14 @@ export default function AppNavigator() {
             title: 'Comida',
             cardStyleInterpolator: interpoladorTab(route.params),
           })}
+        />
+        <Stack.Screen
+          name="Estado"
+          component={EstadoScreen}
+          options={{
+            title: 'Mi Estado',
+            headerShown: false,
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

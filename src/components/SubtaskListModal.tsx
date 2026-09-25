@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View, TextInput, ScrollView } from 'react-native'
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View, TextInput, ScrollView } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
 import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme'
@@ -30,8 +30,9 @@ export function SubtaskListModal({
   const [nuevaSubtarea, setNuevaSubtarea] = useState('')
 
   const handleAdd = () => {
-    if (nuevaSubtarea.trim().length > 0) {
-      onAdd(nuevaSubtarea.trim())
+    const t = nuevaSubtarea.trim()
+    if (t.length >= 2 && t.length <= 60) {
+      onAdd(t)
       setNuevaSubtarea('')
     }
   }
@@ -44,9 +45,17 @@ export function SubtaskListModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={(e) => e.stopPropagation()}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}>
           <View style={styles.header}>
-            <Text style={styles.title}>Subtareas</Text>
-            <Text style={[styles.subtitle, { color: accentColor }]}>{actividadTitulo}</Text>
+            <View style={styles.headerRow}>
+              <View>
+                <Text style={styles.title}>Subtareas</Text>
+                <Text style={[styles.subtitle, { color: accentColor }]}>{actividadTitulo}</Text>
+              </View>
+              <Pressable onPress={onClose} hitSlop={8}>
+                <MaterialIcons name="close" size={20} color={PALETTE.onSurfaceVariant} />
+              </Pressable>
+            </View>
             
             {total > 0 && (
               <View style={styles.progressContainer}>
@@ -58,7 +67,34 @@ export function SubtaskListModal({
             )}
           </View>
 
+          {/* Input de alta rápida ARRIBA — siempre visible */}
+          <View style={styles.addContainer}>
+            <TextInput
+              style={styles.input}
+              value={nuevaSubtarea}
+              onChangeText={setNuevaSubtarea}
+              placeholder="Agregar subtarea..."
+              placeholderTextColor={PALETTE.onSurfaceVariant}
+              maxLength={60}
+              returnKeyType="done"
+              onSubmitEditing={handleAdd}
+              blurOnSubmit={false}
+            />
+            <Pressable
+              style={({ pressed }) => [styles.addBtn, { backgroundColor: accentColor }, pressed && pressedFeedback]}
+              onPress={handleAdd}
+            >
+              <MaterialIcons name="add" size={20} color={PALETTE.onAccent} />
+            </Pressable>
+          </View>
+
           <ScrollView style={styles.listContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {subtareas.length === 0 && (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="playlist-add" size={28} color={PALETTE.outline} />
+                <Text style={styles.emptyText}>Sin subtareas aún</Text>
+              </View>
+            )}
             {subtareas.map((subtarea) => {
               const done = subtarea.completado === 1
               return (
@@ -89,23 +125,6 @@ export function SubtaskListModal({
               )
             })}
           </ScrollView>
-
-          <View style={styles.addContianer}>
-            <TextInput
-              style={styles.input}
-              value={nuevaSubtarea}
-              onChangeText={setNuevaSubtarea}
-              placeholder="Nueva subtarea..."
-              placeholderTextColor={PALETTE.onSurfaceVariant}
-              onSubmitEditing={handleAdd}
-            />
-            <Pressable
-              style={({ pressed }) => [styles.addBtn, { backgroundColor: accentColor }, pressed && pressedFeedback]}
-              onPress={handleAdd}
-            >
-              <MaterialIcons name="add" size={20} color={PALETTE.onAccent} />
-            </Pressable>
-          </View>
           
           <Pressable
             style={({ pressed }) => [styles.closeBtn, pressed && pressedFeedback]}
@@ -113,6 +132,7 @@ export function SubtaskListModal({
           >
             <Text style={styles.closeBtnText}>Cerrar</Text>
           </Pressable>
+          </KeyboardAvoidingView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -138,6 +158,11 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 18,
@@ -171,8 +196,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: PALETTE.onSurfaceVariant,
   },
+  addContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
   listContainer: {
     marginBottom: 16,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: PALETTE.outline,
   },
   subtaskRow: {
     flexDirection: 'row',
@@ -202,11 +243,6 @@ const styles = StyleSheet.create({
   },
   deleteBtn: {
     padding: 4,
-  },
-  addContianer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 16,
   },
   input: {
     flex: 1,

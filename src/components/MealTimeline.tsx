@@ -58,7 +58,12 @@ export default function MealTimeline({ registros, onDelete }: Props) {
                   </View>
                   
                   <Text style={styles.itemsText}>
-                    {reg.items.map(i => i.nombre).join(' · ')}
+                    {reg.items.map(i => {
+                      const nombre = i.alimento?.nombre || 'Alimento';
+                      const cant = i.cantidad || 1;
+                      const unit = i.unidad !== 'unidad' && i.unidad !== 'porcion' ? ` ${i.unidad}` : '';
+                      return `${cant}${unit} ${nombre}`;
+                    }).join(' · ')}
                   </Text>
 
                   {reg.nota && reg.nota.trim().length > 0 && (

@@ -9,14 +9,15 @@ export interface Usuario{
     cintura: number;
     cuello: number;
     edad: number;
+    fecha_nacimiento?: string;
     avatarUrl: string;
 }
 
 export const saveOrUpdateUsuario = async (usuario: Usuario): Promise<void> => {
     const db = await getDatabase();
     await db.runAsync(
-        `INSERT OR REPLACE INTO usuario (ci, nombre, apellido, peso, altura, cintura, cuello, edad, avatarUrl) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR REPLACE INTO usuario (ci, nombre, apellido, peso, altura, cintura, cuello, edad, fecha_nacimiento, avatarUrl) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
             String(usuario.ci), 
             usuario.nombre, 
@@ -25,7 +26,8 @@ export const saveOrUpdateUsuario = async (usuario: Usuario): Promise<void> => {
             usuario.altura, 
             usuario.cintura, 
             usuario.cuello, 
-            usuario.edad, 
+            usuario.edad,
+            usuario.fecha_nacimiento || null,
             usuario.avatarUrl
         ]
     );

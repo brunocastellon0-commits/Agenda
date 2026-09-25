@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
 import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme'
@@ -70,119 +70,121 @@ export function NuevoTipoActividadModal({ visible, onClose, onSave }: NuevoTipoA
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]} onPress={(e) => e.stopPropagation()}>
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Nuevo Tipo de Actividad</Text>
-              <Text style={styles.subtitle}>Define una nueva área o categoría personalizada.</Text>
-            </View>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <View style={styles.header}>
+                <Text style={styles.title}>Nuevo Tipo de Actividad</Text>
+                <Text style={styles.subtitle}>Define una nueva área o categoría personalizada.</Text>
+              </View>
 
-            {/* Vista previa en tiempo real */}
-            <View style={styles.previewContainer}>
-              <Text style={styles.previewLabel}>VISTA PREVIA</Text>
-              <View style={[styles.previewCard, { backgroundColor: tint(COLORES_TIPO_ACTIVIDAD[colorIndex].color, 0.08) }]}>
-                <View
-                  style={[
-                    styles.previewIconBox,
-                    { backgroundColor: COLORES_TIPO_ACTIVIDAD[colorIndex].color },
-                  ]}
-                >
-                  <MaterialIcons
-                    name={(selectedIcon as keyof typeof MaterialIcons.glyphMap) || 'folder'}
-                    size={22}
-                    color={PALETTE.onAccent}
-                  />
-                </View>
-                <View style={styles.previewTextContainer}>
-                  <Text
+              {/* Vista previa en tiempo real */}
+              <View style={styles.previewContainer}>
+                <Text style={styles.previewLabel}>VISTA PREVIA</Text>
+                <View style={[styles.previewCard, { backgroundColor: tint(COLORES_TIPO_ACTIVIDAD[colorIndex].color, 0.08) }]}>
+                  <View
                     style={[
-                      styles.previewTitle,
-                      { color: COLORES_TIPO_ACTIVIDAD[colorIndex].color },
+                      styles.previewIconBox,
+                      { backgroundColor: COLORES_TIPO_ACTIVIDAD[colorIndex].color },
                     ]}
                   >
-                    {nombre.trim().length > 0 ? nombre.trim() : 'Nombre del área'}
-                  </Text>
-                  <Text style={styles.previewSubtitle}>Área de actividad personalizada</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Nombre</Text>
-              <TextInput
-                style={styles.input}
-                value={nombre}
-                onChangeText={setNombre}
-                placeholder="Ej. Programación, Salud, Finanzas..."
-                placeholderTextColor={PALETTE.onSurfaceVariant}
-                maxLength={40}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Selecciona un Ícono</Text>
-              <View style={styles.iconGrid}>
-                {ICONOS_DISPONIBLES.map((iconName) => {
-                  const isSelected = selectedIcon === iconName
-                  const colorActual = COLORES_TIPO_ACTIVIDAD[colorIndex].color
-                  return (
-                    <Pressable
-                      key={iconName}
-                      onPress={() => setSelectedIcon(iconName)}
-                      style={({ pressed }) => [
-                        styles.iconBox,
-                        isSelected ? { backgroundColor: colorActual } : { backgroundColor: PALETTE.surfaceContainer },
-                        pressed && pressedFeedback,
+                    <MaterialIcons
+                      name={(selectedIcon as keyof typeof MaterialIcons.glyphMap) || 'folder'}
+                      size={22}
+                      color={PALETTE.onAccent}
+                    />
+                  </View>
+                  <View style={styles.previewTextContainer}>
+                    <Text
+                      style={[
+                        styles.previewTitle,
+                        { color: COLORES_TIPO_ACTIVIDAD[colorIndex].color },
                       ]}
                     >
-                      <MaterialIcons
-                        name={iconName}
-                        size={20}
-                        color={isSelected ? PALETTE.onAccent : PALETTE.ink}
+                      {nombre.trim().length > 0 ? nombre.trim() : 'Nombre del área'}
+                    </Text>
+                    <Text style={styles.previewSubtitle}>Área de actividad personalizada</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Nombre</Text>
+                <TextInput
+                  style={styles.input}
+                  value={nombre}
+                  onChangeText={setNombre}
+                  placeholder="Ej. Programación, Salud, Finanzas..."
+                  placeholderTextColor={PALETTE.onSurfaceVariant}
+                  maxLength={40}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Selecciona un Ícono</Text>
+                <View style={styles.iconGrid}>
+                  {ICONOS_DISPONIBLES.map((iconName) => {
+                    const isSelected = selectedIcon === iconName
+                    const colorActual = COLORES_TIPO_ACTIVIDAD[colorIndex].color
+                    return (
+                      <Pressable
+                        key={iconName}
+                        onPress={() => setSelectedIcon(iconName)}
+                        style={({ pressed }) => [
+                          styles.iconBox,
+                          isSelected ? { backgroundColor: colorActual } : { backgroundColor: PALETTE.surfaceContainer },
+                          pressed && pressedFeedback,
+                        ]}
+                      >
+                        <MaterialIcons
+                          name={iconName}
+                          size={20}
+                          color={isSelected ? PALETTE.onAccent : PALETTE.ink}
+                        />
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Color</Text>
+                <View style={styles.colorRow}>
+                  {COLORES_TIPO_ACTIVIDAD.map((opcion, index) => {
+                    const isSelected = index === colorIndex
+                    return (
+                      <Pressable
+                        key={opcion.color}
+                        onPress={() => setColorIndex(index)}
+                        style={({ pressed }) => [
+                          styles.colorCircle,
+                          { backgroundColor: opcion.color },
+                          isSelected && styles.colorCircleSelected,
+                          pressed && pressedFeedback,
+                        ]}
                       />
-                    </Pressable>
-                  )
-                })}
+                    )
+                  })}
+                </View>
               </View>
-            </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Color</Text>
-              <View style={styles.colorRow}>
-                {COLORES_TIPO_ACTIVIDAD.map((opcion, index) => {
-                  const isSelected = index === colorIndex
-                  return (
-                    <Pressable
-                      key={opcion.color}
-                      onPress={() => setColorIndex(index)}
-                      style={({ pressed }) => [
-                        styles.colorCircle,
-                        { backgroundColor: opcion.color },
-                        isSelected && styles.colorCircleSelected,
-                        pressed && pressedFeedback,
-                      ]}
-                    />
-                  )
-                })}
+              {error && <Text style={styles.error}>{error}</Text>}
+
+              <View style={styles.actions}>
+                <Pressable
+                  style={({ pressed }) => [styles.button, styles.secondaryButton, pressed && pressedFeedback]}
+                  onPress={onClose}
+                >
+                  <Text style={styles.secondaryText}>Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.button, styles.primaryButton, pressed && pressedFeedback]}
+                  onPress={handleGuardar}
+                >
+                  <Text style={styles.primaryText}>Crear</Text>
+                </Pressable>
               </View>
-            </View>
-
-            {error && <Text style={styles.error}>{error}</Text>}
-
-            <View style={styles.actions}>
-              <Pressable
-                style={({ pressed }) => [styles.button, styles.secondaryButton, pressed && pressedFeedback]}
-                onPress={onClose}
-              >
-                <Text style={styles.secondaryText}>Cancelar</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.button, styles.primaryButton, pressed && pressedFeedback]}
-                onPress={handleGuardar}
-              >
-                <Text style={styles.primaryText}>Crear</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -203,6 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: PALETTE.surfaceContainerLowest,
     paddingHorizontal: 20,
     paddingTop: 20,
+    maxHeight: '90%',
     ...SHADOW.modal,
   },
   header: {

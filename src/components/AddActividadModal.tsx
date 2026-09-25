@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
@@ -219,6 +219,10 @@ export function AddActividadModal({
           style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}
           onPress={(e) => e.stopPropagation()}
         >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+          >
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {/* Header del modal */}
             <View style={styles.header}>
@@ -234,7 +238,7 @@ export function AddActividadModal({
             {/* Input principal ultra-rápido */}
             <View style={styles.inputContainer}>
               <TextInput
-                style={styles.mainInput}
+                style={[styles.mainInput, error ? { borderBottomColor: PALETTE.categorias.critico } : undefined]}
                 value={titulo}
                 onChangeText={(val) => {
                   setTitulo(val)
@@ -247,6 +251,7 @@ export function AddActividadModal({
                 returnKeyType="done"
                 onSubmitEditing={handleGuardar}
               />
+              {error && <Text style={styles.errorText}>{error}</Text>}
             </View>
 
             {/* Selector de Hora con picker nativo */}
@@ -633,7 +638,7 @@ export function AddActividadModal({
               </View>
             )}
 
-            {error && <Text style={styles.errorText}>{error}</Text>}
+
 
             {/* Botón principal de guardado */}
             <View style={styles.actions}>
@@ -649,6 +654,7 @@ export function AddActividadModal({
               </Pressable>
             </View>
           </ScrollView>
+          </KeyboardAvoidingView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -896,9 +902,9 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
+    fontWeight: '500',
     color: PALETTE.categorias.critico,
     marginTop: 6,
-    textAlign: 'center',
   },
   actions: {
     marginTop: 16,

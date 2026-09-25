@@ -39,5 +39,5 @@ export function navigateToTab<S extends keyof RootStackParamList>(
   }
   const screen = TAB_TO_SCREEN[hacia];
   if (!screen) return;
-  navigation.navigate(screen, animParaTab(desde, hacia));
+  navigation.navigate(screen as any, animParaTab(desde, hacia));
 }

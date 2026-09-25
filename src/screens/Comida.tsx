@@ -15,12 +15,15 @@ import {
   analizarRango, 
   AnalisisAlimentacion, 
   eliminarRegistroComida,
-  asegurarAlimentosIniciales
+  asegurarAlimentosIniciales,
+  getResumenDia,
+  ResumenNutricional
 } from '../repositories/comidaRepo';
 
 import { scheduleRecordatorioComida } from '../services/notificaciones';
 
 import FoodQualityCard from '../components/FoodQualityCard';
+import { FoodSummaryCard } from '../components/FoodSummaryCard';
 import MealTimeline from '../components/MealTimeline';
 import AddMealSheet from '../components/AddMealSheet';
 
@@ -32,6 +35,7 @@ export default function ComidaScreen({ navigation }: Props) {
   
   const [registros, setRegistros] = useState<RegistroComida[]>([]);
   const [analisis, setAnalisis] = useState<AnalisisAlimentacion | null>(null);
+  const [resumenNutricional, setResumenNutricional] = useState<ResumenNutricional>({ kcal: 0, prot: 0, carb: 0, grasa: 0 });
   
   const [showAddSheet, setShowAddSheet] = useState(false);
 
@@ -53,6 +57,9 @@ export default function ComidaScreen({ navigation }: Props) {
       const iso = toISO(fecha);
       const reg = await getRegistrosDia(iso);
       setRegistros(reg);
+      
+      const resNutri = await getResumenDia(iso);
+      setResumenNutricional(resNutri);
 
       const hoyISO = toISO(new Date());
       if (iso === hoyISO) {
@@ -123,6 +130,16 @@ export default function ComidaScreen({ navigation }: Props) {
           <ActivityIndicator size="large" color={PALETTE.primary} style={styles.loader} />
         ) : (
           <>
+            {/* RESUMEN DIARIO */}
+            <View style={{ marginBottom: 16 }}>
+              <FoodSummaryCard 
+                comidasCount={registros.length}
+                ultimaComida={registros.length > 0 ? `${registros[registros.length - 1].tipo} · ${registros[registros.length - 1].hora}` : null}
+                resumenNutricional={resumenNutricional}
+                onPress={() => {}}
+              />
+            </View>
+
             {/* ANÁLISIS */}
             {analisis && registros.length > 0 && analisis.calidadGeneral >= 0 && (
               <FoodQualityCard analisis={analisis} label="calidad semanal" />

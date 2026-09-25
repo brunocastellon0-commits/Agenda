@@ -24,17 +24,19 @@ function obtenerFechaFormateada(): string {
   return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
 }
 
-export function ProfileBanner({ usuario }: Props) {
+import { Pressable } from 'react-native';
+
+export function ProfileBanner({ usuario, onPress }: Props & { onPress?: () => void }) {
   const saludo = obtenerSaludo();
   const fecha = obtenerFechaFormateada();
 
   return (
-    <View style={styles.bannerContainer}>
+    <Pressable onPress={onPress} style={styles.bannerContainer}>
       <Text style={styles.saludo}>
         {saludo}, {usuario.nombre || 'viajero'}
       </Text>
       <Text style={styles.fecha}>{fecha}</Text>
-    </View>
+    </Pressable>
   );
 }
 

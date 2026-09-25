@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Pressable, Modal, StyleSheet } from 'react-native';
+import { View, Text, TextInput, Pressable, Modal, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { PALETTE, SHADOW, pressedFeedback } from '../theme/theme';
@@ -59,7 +59,7 @@ export function AddPagoModal({ visible, cuentaNombre, onClose, onSave }: Props) 
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
         <View style={[styles.modalContent, { paddingBottom: Math.max(24, insets.bottom + 12) }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Nuevo pago</Text>
@@ -70,48 +70,50 @@ export function AddPagoModal({ visible, cuentaNombre, onClose, onSave }: Props) 
 
           <Text style={styles.subtitle}>Cuenta: {cuentaNombre}</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Nombre del pago</Text>
-            <TextInput
-              style={[styles.textInput, errores.nombre !== null && styles.textInputError]}
-              value={nombre}
-              onChangeText={setNombre}
-              maxLength={60}
-              placeholder="Ej. Luz, Universidad, Netflix"
-              placeholderTextColor={PALETTE.outline}
-            />
-            {errores.nombre !== null && <Text style={styles.errorText}>{errores.nombre}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Monto</Text>
-            <TextInput
-              style={[styles.textInput, errores.monto !== null && styles.textInputError]}
-              value={monto}
-              onChangeText={setMonto}
-              keyboardType="decimal-pad"
-            />
-            {errores.monto !== null && <Text style={styles.errorText}>{errores.monto}</Text>}
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Tipo de pago</Text>
-            <View style={styles.tipoRow}>
-              {TIPOS.map((t) => {
-                const selected = tipo === t.key;
-                return (
-                  <Pressable
-                    key={t.key}
-                    style={({ pressed }) => [styles.tipoCard, selected && styles.tipoCardSelected, pressed && pressedFeedback]}
-                    onPress={() => setTipo(t.key)}
-                  >
-                    <Text style={[styles.tipoLabel, selected && styles.tipoLabelSelected]}>{t.label}</Text>
-                    <Text style={[styles.tipoDesc, selected && styles.tipoDescSelected]}>{t.descripcion}</Text>
-                  </Pressable>
-                );
-              })}
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nombre del pago</Text>
+              <TextInput
+                style={[styles.textInput, errores.nombre !== null && styles.textInputError]}
+                value={nombre}
+                onChangeText={setNombre}
+                maxLength={60}
+                placeholder="Ej. Luz, Universidad, Netflix"
+                placeholderTextColor={PALETTE.outline}
+              />
+              {errores.nombre !== null && <Text style={styles.errorText}>{errores.nombre}</Text>}
             </View>
-          </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Monto</Text>
+              <TextInput
+                style={[styles.textInput, errores.monto !== null && styles.textInputError]}
+                value={monto}
+                onChangeText={setMonto}
+                keyboardType="decimal-pad"
+              />
+              {errores.monto !== null && <Text style={styles.errorText}>{errores.monto}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Tipo de pago</Text>
+              <View style={styles.tipoRow}>
+                {TIPOS.map((t) => {
+                  const selected = tipo === t.key;
+                  return (
+                    <Pressable
+                      key={t.key}
+                      style={({ pressed }) => [styles.tipoCard, selected && styles.tipoCardSelected, pressed && pressedFeedback]}
+                      onPress={() => setTipo(t.key)}
+                    >
+                      <Text style={[styles.tipoLabel, selected && styles.tipoLabelSelected]}>{t.label}</Text>
+                      <Text style={[styles.tipoDesc, selected && styles.tipoDescSelected]}>{t.descripcion}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </ScrollView>
 
           <View style={styles.modalActions}>
             <Pressable style={({ pressed }) => [styles.cancelButton, pressed && pressedFeedback]} onPress={onClose}>
@@ -124,7 +126,7 @@ export function AddPagoModal({ visible, cuentaNombre, onClose, onSave }: Props) 
             </TintPill>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -141,6 +143,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     gap: 12,
+    maxHeight: '85%',
     ...SHADOW.modal,
   },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

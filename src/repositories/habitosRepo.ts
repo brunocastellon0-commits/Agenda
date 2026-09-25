@@ -1,5 +1,6 @@
 import { getDatabase } from '../database/db';
 import { ReglaRecurrencia } from './actividadRepo';
+import { calcularRachaDiariaPositiva, calcularRachaSemanalPositiva } from '../utils/rachas';
 
 export interface SeguimientoHabito {
   id?: number;
@@ -146,7 +147,6 @@ export const getHabitosActivos = async (): Promise<HabitoProgreso[]> => {
     const completadoAyer = mapActs.get(ayerIso) || false;
 
     // 4. Calcular Racha Histórica
-    // Para simplificar, obtenemos TODAS las actividades de este hábito
     const allActs = await db.getAllAsync<{ fecha: string; completado: number; eliminada: number }>(
       `SELECT fecha, completado, eliminada FROM actividad 
        WHERE regla_recurrencia_id = ? AND (eliminada = 0 OR eliminada IS NULL)
@@ -158,53 +158,11 @@ export const getHabitosActivos = async (): Promise<HabitoProgreso[]> => {
     let mejorRacha = 0;
 
     if (frecuencia === 'diario') {
-      // Racha diaria: contar días consecutivos completados
       const fechasCompletadas = allActs.filter(a => a.completado === 1).map(a => a.fecha);
-      const fechasSet = new Set(fechasCompletadas);
-      
-      // Racha actual
-      let d = new Date(hoy);
-      if (!fechasSet.has(hoyIso)) {
-        d.setDate(d.getDate() - 1); // Empezar por ayer si hoy no está completado
-      }
-      
-      let rActual = 0;
-      while(true) {
-        if (fechasSet.has(toISO(d))) {
-          rActual++;
-          d.setDate(d.getDate() - 1);
-        } else {
-          break;
-        }
-      }
-      rachaActual = rActual;
-
-      // Mejor racha
-      let rMax = 0;
-      let curr = 0;
-      let prevTs = 0;
-      // fechasCompletadas está ordenado DESC
-      for (let i = 0; i < fechasCompletadas.length; i++) {
-        const ts = new Date(fechasCompletadas[i] + 'T00:00:00').getTime();
-        if (i === 0) {
-          curr = 1;
-          prevTs = ts;
-        } else {
-          const diffDays = Math.round((prevTs - ts) / (1000 * 60 * 60 * 24));
-          if (diffDays === 1) {
-            curr++;
-          } else {
-            if (curr > rMax) rMax = curr;
-            curr = 1;
-          }
-          prevTs = ts;
-        }
-      }
-      if (curr > rMax) rMax = curr;
-      mejorRacha = rMax;
-
+      const stats = calcularRachaDiariaPositiva(fechasCompletadas, hoy);
+      rachaActual = stats.rachaActual;
+      mejorRacha = stats.mejorRacha;
     } else {
-      // Racha semanal: agrupar por semana y verificar si cumplió el objetivo
       const semanasStats = new Map<string, number>();
       
       allActs.forEach(a => {
@@ -219,50 +177,11 @@ export const getHabitosActivos = async (): Promise<HabitoProgreso[]> => {
 
       const semanasCumplidas = Array.from(semanasStats.entries())
         .filter(([wk, count]) => count >= objetivoSemanal)
-        .map(([wk]) => wk)
-        .sort((a,b) => b.localeCompare(a)); // DESC
+        .map(([wk]) => wk);
 
-      const semanasSet = new Set(semanasCumplidas);
-
-      // Racha actual
-      let wDate = new Date(lunes);
-      if (!semanasSet.has(inicioSemanaIso)) {
-        wDate.setDate(wDate.getDate() - 7); // Revisar la anterior
-      }
-
-      let rActual = 0;
-      while(true) {
-        if (semanasSet.has(toISO(wDate))) {
-          rActual++;
-          wDate.setDate(wDate.getDate() - 7);
-        } else {
-          break;
-        }
-      }
-      rachaActual = rActual;
-
-      // Mejor racha
-      let rMax = 0;
-      let curr = 0;
-      let prevTs = 0;
-      for (let i = 0; i < semanasCumplidas.length; i++) {
-        const ts = new Date(semanasCumplidas[i] + 'T00:00:00').getTime();
-        if (i === 0) {
-          curr = 1;
-          prevTs = ts;
-        } else {
-          const diffDays = Math.round((prevTs - ts) / (1000 * 60 * 60 * 24));
-          if (diffDays === 7) {
-            curr++;
-          } else {
-            if (curr > rMax) rMax = curr;
-            curr = 1;
-          }
-          prevTs = ts;
-        }
-      }
-      if (curr > rMax) rMax = curr;
-      mejorRacha = rMax;
+      const stats = calcularRachaSemanalPositiva(semanasCumplidas, hoy);
+      rachaActual = stats.rachaActual;
+      mejorRacha = stats.mejorRacha;
     }
 
     progresos.push({

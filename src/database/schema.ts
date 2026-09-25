@@ -201,8 +201,30 @@ CREATE TABLE IF NOT EXISTS comida_alimento (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
     categoria TEXT NOT NULL,
-    tags TEXT
+    tags TEXT,
+    kcal_100 REAL,
+    prot_100 REAL,
+    carb_100 REAL,
+    grasa_100 REAL,
+    fibra_100 REAL,
+    unidad_base TEXT,
+    origen TEXT,
+    activo INTEGER DEFAULT 1,
+    es_receta INTEGER DEFAULT 0,
+    descripcion TEXT
 );
+
+-- 16b. Ingredientes de Recetas
+CREATE TABLE IF NOT EXISTS comida_receta_item (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    receta_id INTEGER NOT NULL,
+    alimento_id INTEGER NOT NULL,
+    cantidad REAL NOT NULL,
+    unidad TEXT NOT NULL,
+    FOREIGN KEY (receta_id) REFERENCES comida_alimento(id) ON DELETE CASCADE,
+    FOREIGN KEY (alimento_id) REFERENCES comida_alimento(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_comida_receta_item ON comida_receta_item(receta_id);
 
 -- 17. Registro de Comidas
 CREATE TABLE IF NOT EXISTS comida_registro (
@@ -220,9 +242,77 @@ CREATE TABLE IF NOT EXISTS comida_registro_item (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     registro_id INTEGER NOT NULL,
     alimento_id INTEGER NOT NULL,
+    cantidad REAL,
+    unidad TEXT,
+    kcal_est REAL,
+    prot_est REAL,
+    carb_est REAL,
+    grasa_est REAL,
     FOREIGN KEY (registro_id) REFERENCES comida_registro(id) ON DELETE CASCADE,
     FOREIGN KEY (alimento_id) REFERENCES comida_alimento(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_comida_item_reg ON comida_registro_item(registro_id);
+
+-- 19. Conductas a evitar (Autocontrol)
+CREATE TABLE IF NOT EXISTS conducta_evitar (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL,
+    descripcion TEXT,
+    categoria TEXT NOT NULL,
+    modalidad TEXT NOT NULL, -- 'evitacion_total' | 'limite'
+    frecuencia TEXT NOT NULL, -- 'diario' | 'semanal' | 'mensual'
+    objetivo REAL NOT NULL,
+    unidad TEXT NOT NULL,
+    activa INTEGER DEFAULT 1,
+    fecha_creacion TEXT NOT NULL,
+    recordatorio INTEGER DEFAULT 0,
+    origen TEXT NOT NULL -- 'propia' | 'ejemplo'
+);
+
+-- 20. Eventos (ocurrencias) de las conductas
+CREATE TABLE IF NOT EXISTS conducta_evento (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conducta_id INTEGER NOT NULL,
+    fecha TEXT NOT NULL,
+    hora TEXT,
+    cantidad REAL DEFAULT 1,
+    unidad TEXT,
+    nota TEXT,
+    FOREIGN KEY (conducta_id) REFERENCES conducta_evitar(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_conducta_evento_fecha ON conducta_evento(fecha);
+
+-- 21. Historial de Rachas de Conductas (Guardadas al romperse)
+CREATE TABLE IF NOT EXISTS conducta_racha (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conducta_id INTEGER NOT NULL,
+    fecha_inicio TEXT NOT NULL,
+    fecha_fin TEXT NOT NULL,
+    dias INTEGER NOT NULL,
+    motivo_fin TEXT,
+    FOREIGN KEY (conducta_id) REFERENCES conducta_evitar(id) ON DELETE CASCADE
+);
+
+-- 22. Evolución Física (Mi Estado)
+CREATE TABLE IF NOT EXISTS registro_fisico (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ci_usuario TEXT NOT NULL,
+    fecha_medicion TEXT NOT NULL,
+    fecha_registro TEXT NOT NULL,
+    peso REAL,
+    altura REAL,
+    cintura REAL,
+    cuello REAL,
+    notas TEXT,
+    activo INTEGER DEFAULT 1,
+    FOREIGN KEY (ci_usuario) REFERENCES usuario(ci) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_registro_fisico_ci_fecha ON registro_fisico(ci_usuario, fecha_medicion);
+
+-- 23. Configuración de Notificaciones
+CREATE TABLE IF NOT EXISTS notif_config (
+    clave TEXT PRIMARY KEY,
+    valor TEXT NOT NULL
+);
 `;

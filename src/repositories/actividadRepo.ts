@@ -1,5 +1,5 @@
 import { getDatabase } from '../database/db';
-import { scheduleActividadNotification, cancelActividadNotification } from '../services/notificaciones';
+import { scheduleActividadNotification, cancelActividadNotification, syncHabitReminder } from '../services/notificaciones';
 import { PALETTE } from '../theme/theme';
 
 // ─── Tipos de estado ────────────────────────────────────────
@@ -399,8 +399,8 @@ export const crearActividad = async (data: {
 
 export const toggleActividad = async (id: number): Promise<void> => {
   const db = await getDatabase();
-  const act = await db.getFirstAsync<{ completado: number; estado_planificacion: string; estado_ejecucion: string }>(
-    `SELECT completado, estado_planificacion, estado_ejecucion FROM actividad WHERE id = ?`,
+  const act = await db.getFirstAsync<{ completado: number; estado_planificacion: string; estado_ejecucion: string; regla_recurrencia_id: number; titulo: string }>(
+    `SELECT completado, estado_planificacion, estado_ejecucion, regla_recurrencia_id, titulo FROM actividad WHERE id = ?`,
     [id]
   );
   if (!act) return;
@@ -431,6 +431,13 @@ export const toggleActividad = async (id: number): Promise<void> => {
 
   if (nuevoCompletado === 1) {
     await cancelActividadNotification(id);
+  }
+
+  if (act.regla_recurrencia_id) {
+    const hab = await db.getFirstAsync<{id: number}>('SELECT id FROM seguimiento_habito WHERE regla_recurrencia_id = ? AND activo = 1', [act.regla_recurrencia_id]);
+    if (hab) {
+      await syncHabitReminder(hab.id, act.titulo, nuevoCompletado === 1);
+    }
   }
 };
 
@@ -478,12 +485,16 @@ export const reprogramarLote = async (
   const originales: Record<number, { fecha: string; hora: string | null }> = {};
 
   for (const id of ids) {
-    const act = await db.getFirstAsync<{ fecha: string; hora: string | null }>(
-      `SELECT fecha, hora FROM actividad WHERE id = ?`,
+    const act = await db.getFirstAsync<{ titulo: string; fecha: string; hora: string | null }>(
+      `SELECT titulo, fecha, hora FROM actividad WHERE id = ?`,
       [id]
     );
     if (act) {
       originales[id] = { fecha: act.fecha, hora: act.hora };
+      if (act.hora) {
+        const isoDate = `${nuevaFecha}T${act.hora}:00`;
+        await scheduleActividadNotification(id, act.titulo, isoDate);
+      }
     }
   }
 
@@ -507,6 +518,21 @@ export const deshacerReprogramarLote = async (
   undo: UndoLoteInfo
 ): Promise<void> => {
   const db = await getDatabase();
+  
+  for (const [idStr, orig] of Object.entries(undo.originales)) {
+    const id = Number(idStr);
+    if (orig.hora) {
+      const act = await db.getFirstAsync<{ titulo: string }>(
+        `SELECT titulo FROM actividad WHERE id = ?`,
+        [id]
+      );
+      if (act) {
+        const isoDate = `${orig.fecha}T${orig.hora}:00`;
+        await scheduleActividadNotification(id, act.titulo, isoDate);
+      }
+    }
+  }
+
   await db.withExclusiveTransactionAsync(async (txn) => {
     for (const [idStr, orig] of Object.entries(undo.originales)) {
       const id = Number(idStr);
@@ -583,6 +609,10 @@ export const transicionarEstado = async (
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [id, planifActual, nuevoPlanificacion, ejecActual, nuevoEjecucion, new Date().toISOString(), motivo ?? null]
   );
+
+  if (nuevoPlanificacion === 'reprogramada' || nuevoPlanificacion === 'cancelada') {
+    await cancelActividadNotification(id);
+  }
 
   return true;
 };

@@ -14,7 +14,8 @@
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/icon.jpg"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": true,
+      "package": "com.brunocastellon0.agendaapp"
     },
     "web": {
       "favicon": "./assets/icon.jpg"
@@ -26,7 +27,22 @@
     },
     "plugins": [
       "expo-sqlite",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "MiDiaWidget",
+              "label": "Mi Día",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "description": "Resumen de tus hábitos y actividades",
+              "previewImage": "./assets/icon.jpg"
+            }
+          ]
+        }
+      ]
     ],
     "extra": {
       "eas": {

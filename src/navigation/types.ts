@@ -8,4 +8,5 @@ export type RootStackParamList = {
   Actividades: TabAnimParams | undefined;
   Metricas: TabAnimParams | undefined;
   Comida: TabAnimParams | undefined;
+  Estado: undefined;
 };
