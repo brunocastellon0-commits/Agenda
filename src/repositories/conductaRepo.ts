@@ -113,3 +113,12 @@ export const registrarEventoConducta = async (
     [conducta_id, fecha, hora, cantidad, unidad, nota]
   );
 };
+
+export const desactivarConducta = async (conducta_id: number): Promise<void> => {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE conducta_evitar SET activa = 0 WHERE id = ?`,
+    [conducta_id]
+  );
+};
+

@@ -44,18 +44,18 @@ export const RADIUS = {
 
 export const SHADOW = {
   card: {
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    elevation: 4,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
   },
   modal: {
     elevation: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.14,
-    shadowRadius: 16,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.20,
+    shadowRadius: 24,
   },
 };
 

@@ -99,7 +99,7 @@ export interface HistorialEstado {
 export const TIPOS_INICIALES: { nombre: string; color: string; emoji: string }[] = [
   { nombre: 'Trabajo', color: PALETTE.categorias.trabajo, emoji: 'work' },
   { nombre: 'Universidad', color: PALETTE.categorias.objetivos, emoji: 'school' },
-  { nombre: 'Ocio', color: PALETTE.categorias.ocio, emoji: 'sports_esports' },
+  { nombre: 'Ocio', color: PALETTE.categorias.ocio, emoji: 'gamepad' },
 ];
 
 export const COLORES_TIPO_ACTIVIDAD: { nombre: string; color: string }[] = [
@@ -130,7 +130,7 @@ export const asegurarTiposIniciales = async (): Promise<void> => {
   // Migración automática de emojis heredados a nombres de MaterialIcons
   await db.runAsync(`UPDATE tipo_actividad SET emoji = 'work' WHERE emoji = '💼'`);
   await db.runAsync(`UPDATE tipo_actividad SET emoji = 'school' WHERE emoji = '🎓'`);
-  await db.runAsync(`UPDATE tipo_actividad SET emoji = 'sports_esports' WHERE emoji = '🎮'`);
+  await db.runAsync(`UPDATE tipo_actividad SET emoji = 'gamepad' WHERE emoji = '🎮' OR emoji = 'sports_esports'`);
 
   const row = await db.getFirstAsync<{ total: number }>(
     `SELECT COUNT(*) AS total FROM tipo_actividad`

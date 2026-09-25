@@ -4,7 +4,7 @@
     "slug": "agenda-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.jpg",
+    "icon": "./assets/relok.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
@@ -12,16 +12,16 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/icon.jpg"
+        "foregroundImage": "./assets/relok.png"
       },
       "predictiveBackGestureEnabled": true,
       "package": "com.brunocastellon0.agendaapp"
     },
     "web": {
-      "favicon": "./assets/icon.jpg"
+      "favicon": "./assets/relok.png"
     },
     "splash": {
-      "image": "./assets/icon.jpg",
+      "image": "./assets/relok.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -38,7 +38,7 @@
               "minWidth": "110dp",
               "minHeight": "110dp",
               "description": "Resumen de tus hábitos y actividades",
-              "previewImage": "./assets/icon.jpg"
+              "previewImage": "./assets/relok.png"
             }
           ]
         }

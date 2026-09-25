@@ -26,6 +26,7 @@ import FollowActivityModal from '../components/FollowActivityModal';
 import PeriodSelector from '../components/PeriodSelector';
 import WeeklyOverviewCard from '../components/WeeklyOverviewCard';
 import TimeDistributionCard from '../components/TimeDistributionCard';
+import ManageTrackingModal from '../components/ManageTrackingModal';
 import InsightsCard from '../components/InsightsCard';
 
 import {
@@ -59,6 +60,7 @@ export default function MetricasScreen({ navigation }: Props) {
 
   const [selectedConducta, setSelectedConducta] = useState<ConductaEvitar | null>(null);
   const [showFollowModal, setShowFollowModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
 
   const loadData = async (p: PeriodoMetricas) => {
     setLoading(true);
@@ -166,8 +168,11 @@ export default function MetricasScreen({ navigation }: Props) {
             <InsightsCard insights={insights} />
 
             {/* SECCIÓN: HÁBITOS */}
-            <View style={styles.sectionHeader}>
+            <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
               <Text style={styles.sectionTitle}>Hábitos</Text>
+              <Pressable onPress={() => setShowManageModal(true)} style={({pressed}) => [pressed && pressedFeedback, { padding: 4 }]}>
+                <Ionicons name="settings-outline" size={20} color={PALETTE.outline} />
+              </Pressable>
             </View>
             {habitos.length === 0 ? (
               <View style={styles.emptyCard}>
@@ -264,6 +269,12 @@ export default function MetricasScreen({ navigation }: Props) {
           loadData(periodo);
         }}
       />
+
+      <ManageTrackingModal 
+        visible={showManageModal}
+        onClose={() => setShowManageModal(false)}
+        onChanged={() => loadData(periodo)}
+      />
     </SafeAreaView>
   );
 }
@@ -295,7 +306,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.cards,
     padding: 16,
     ...SHADOW.card,
-    elevation: 2,
+    elevation: 4,
   },
   summaryLabel: {
     fontSize: 11,
@@ -346,6 +357,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     ...SHADOW.card,
+    elevation: 4,
   },
   estadoLabel: {
     fontSize: 12,

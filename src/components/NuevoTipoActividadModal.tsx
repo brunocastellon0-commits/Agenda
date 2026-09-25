@@ -20,7 +20,7 @@ interface NuevoTipoActividadModalProps {
 export const ICONOS_DISPONIBLES: (keyof typeof MaterialIcons.glyphMap)[] = [
   'work',
   'school',
-  'sports-esports',
+  'gamepad',
   'fitness-center',
   'menu-book',
   'code',

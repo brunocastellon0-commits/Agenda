@@ -11,7 +11,7 @@ import { getConsistencia } from '../repositories/metricasRepo';
 import { getRegistrosDia, getResumenDia, ResumenNutricional } from '../repositories/comidaRepo';
 import { getConductasActivas, asegurarConductasIniciales, ConductaProgreso } from '../repositories/conductaRepo';
 import { getComparativa, RegistroFisico } from '../repositories/estadoFisicoRepo';
-import { toISODate, saludoPorHora } from '../utils/semana';
+import { toISODate } from '../utils/semana';
 import { scheduleDailySummary, scheduleAvoidanceReminder } from '../services/notificaciones';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requestWidgetUpdate } from 'react-native-android-widget';
@@ -136,10 +136,6 @@ export default function HomeScreen({ navigation }: Props) {
   const conductasEvitacion = conductas.filter(c => c.conducta.modalidad === 'evitacion_total');
   const mejorRachaConducta = conductasEvitacion.length > 0 ? Math.max(...conductasEvitacion.map(c => c.rachaActual)) : 0;
 
-  const now = new Date();
-  const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
-  const fechaStr = now.toLocaleDateString('es-ES', options);
-
   const pendingActs = actividadesHoy.filter(a => !a.completado && a.hora);
   const proxActividad = pendingActs.length > 0 ? pendingActs.sort((a,b) => (a.hora || '23:59').localeCompare(b.hora || '23:59'))[0] : null;
 
@@ -158,11 +154,6 @@ export default function HomeScreen({ navigation }: Props) {
           <Pressable onPress={() => setShowNotifSheet(true)} style={({pressed}) => [{ padding: 8 }, pressed && {opacity: 0.7}]}>
             <Ionicons name="settings-outline" size={24} color={PALETTE.onSurfaceVariant} />
           </Pressable>
-        </View>
-
-        <View style={styles.saludoContainer}>
-          <Text style={styles.saludoText}>{saludoPorHora()}, {usuario?.nombre || 'Viajero'}</Text>
-          <Text style={styles.fechaText}>{fechaStr.charAt(0).toUpperCase() + fechaStr.slice(1)}</Text>
         </View>
 
         <Text style={styles.mapaTitle}>Tu Día en Marcha</Text>
@@ -300,22 +291,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
   },
-  saludoContainer: {
-    marginBottom: 32,
-    paddingHorizontal: 8,
-  },
-  saludoText: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: PALETTE.ink,
-    letterSpacing: -0.5,
-  },
-  fechaText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: PALETTE.onSurfaceVariant,
-    marginTop: 4,
-  },
   mapaTitle: {
     fontSize: 13,
     fontWeight: '700',
@@ -337,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.cards,
     padding: 20,
     ...SHADOW.card,
-    elevation: 2,
+    elevation: 4,
     justifyContent: 'center',
   },
   nodeLarge: {

@@ -656,7 +656,10 @@ export default function ActividadesScreen({ navigation }: Props) {
           setActiveTipoId(tipo?.id)
           setSelectorOpen(false)
         }}
-        onCreateTipo={() => setNuevoTipoOpen(true)}
+        onCreateTipo={() => {
+          setSelectorOpen(false);
+          setTimeout(() => setNuevoTipoOpen(true), 300);
+        }}
         onClose={() => setSelectorOpen(false)}
       />
 
