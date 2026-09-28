@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme';
+import { PALETTE, pressedFeedback } from '../theme/theme';
+import { Eyebrow } from './editorial';
 import { RegistroComida, TipoComida } from '../repositories/comidaRepo';
 import { formatCantidadUnidad, formatEstimado } from '../utils/nutricion';
 
@@ -30,7 +31,7 @@ export default function MealTimeline({ registros, onDelete }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>COMIDAS DEL DÍA</Text>
+      <Eyebrow text="Comidas del día" color={PALETTE.categorias.comida} style={styles.headerTitle} />
 
       {ORDEN_TIPOS.map(({ id, label }) => {
         const color = colorForTipo(id);
@@ -48,7 +49,7 @@ export default function MealTimeline({ registros, onDelete }: Props) {
               <Text style={styles.seccionVacia}>—</Text>
             ) : (
               delTipo.map(reg => (
-                <View key={reg.id} style={styles.card}>
+                <View key={reg.id} style={styles.registro}>
                   <View style={styles.cardHeader}>
                     <Text style={[styles.tipoLabel, { color }]}>{reg.hora}</Text>
                     {onDelete && (
@@ -96,12 +97,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   headerTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: PALETTE.onSurfaceVariant,
-    letterSpacing: 1,
     marginBottom: 16,
-    marginLeft: 4,
   },
   seccion: {
     marginBottom: 20,
@@ -121,6 +117,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: PALETTE.ink,
+    letterSpacing: 0,
   },
   seccionLinea: {
     flex: 1,
@@ -133,12 +130,12 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     marginBottom: 4,
   },
-  card: {
-    backgroundColor: PALETTE.surfaceContainerLowest,
-    borderRadius: RADIUS.cards,
-    padding: 16,
-    marginBottom: 8,
-    ...SHADOW.card,
+  // Registro abierto sobre el lienzo: separador editorial, sin card propia
+  registro: {
+    paddingVertical: 12,
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.hairline,
   },
   cardHeader: {
     flexDirection: 'row',

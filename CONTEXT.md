@@ -95,33 +95,50 @@ Funciones (las de uso común):
 
 ## 5. Design system (resumen; normas duras en `AGENTS.md`)
 
-- Superficie `PALETTE.surface #FAF9F7`; inputs/tonal `surfaceContainer #F1EFEA`; cards/sheets `surfaceContainerLowest #FFFFFF` **sin borde** + `SHADOW.card` radius 18; hairline/border `#DDE5E1`. **PROHIBIDO borde negro y neón** (no existe `NeonGlow`).
-- Acento/CTA/tab activa: `PALETTE.primary #16876A`. `secondary #E76F51`, `tertiary #4F46A5`.
-- Tinta `ink/onSurface #1E293B`; `onSurfaceVariant #55606E`; `outline #94A3B8`; `surfaceDark #1E293B`.
-- Texto sobre fills semánticos = `onAccent`/`onDark` (blanco `#FFFFFF`). Ámbar/rojo como fill, no como texto pequeño.
+Estética vigente: **"Expressive Editorial Personal Dashboard"** — lienzo blanco, identidad cyan oscuro, tipografía con escala editorial y composición asimétrica. **Home, Métricas y Comida ya migradas**; el resto de módulos sigue el mismo lenguaje (tanda siguiente).
+
+- Lienzo **blanco puro** `PALETTE.surface #FFFFFF`; inputs/tonal `surfaceContainer #F1F5F9`; cards/sheets `surfaceContainerLowest #FFFFFF` **sin borde** + `SHADOW.card` (radius `RADIUS.cards` 24); hairline `#E2E8F0` (`PALETTE.hairline`). **PROHIBIDO borde negro, neón, gradiente y dark mode.**
+- **Identidad**: `PALETTE.primary #155860` (CTA, tab activa, selección, eyebrow por defecto) · `accent #0891B2` (progreso/indicadores). Mismo tono que `assets/icon-1024.png`, `assets/mascota.png` y el splash. `secondary #64748B`, `tertiary #0284C7`. Overlay: `PALETTE.scrim rgba(19,26,24,0.4)`.
+- Tinta `ink/onSurface #0F172A`; `onSurfaceVariant #475569`; `ash #64748B`; `outline #94A3B8`.
+- Texto sobre fills semánticos = `onAccent`/`onDark` (blanco). Sobre superficie oscura: `onDarkMuted #E2E8F0` (texto secundario) y `surfaceDark #0F172A` / `fondos.control #1E293B`. Ámbar/rojo como fill, no como texto pequeño.
 
 ### Categorías semánticas (`PALETTE.categorias`)
 
 | Área | Token | Color |
 |---|---|---|
-| Finanzas | `finanzas` | `#16876A` esmeralda |
-| Objetivos | `objetivos` | `#4F46A5` índigo |
-| Trabajo | `trabajo` | `#176B87` petróleo |
-| Ocio | `ocio` | `#E76F51` coral |
-| Eventos | `eventos` | `#64748B` gris azulado |
-| Importante | `importante` | `#D89B22` ámbar |
-| Crítico | `critico` | `#C94C4C` rojo |
+| Actividades / Trabajo | `actividades` / `trabajo` | `#0284C7` |
+| Comida / Ocio | `comida` / `ocio` | `#EA580C` |
+| Hábitos | `habitos` | `#10B981` |
+| Autocontrol / Importante | `autocontrol` / `importante` | `#F59E0B` |
+| Métricas / Objetivos | `metricas` / `objetivos` | `#8B5CF6` |
+| Finanzas | `finanzas` | `#1D4ED8` |
+| Control / Crítico | `control` / `critico` | `#E11D48` |
+| Eventos | `eventos` | `#64748B` |
 
-Uso: chip/botón/barras = fill sólido semántico; fondo suave = `TintPill` (alpha 0.12) o `tint(color)`; texto sobre fill oscuro = blanco.
+Fondos suaves por área en `PALETTE.fondos.*` + `fondos.identidad #EDF6F7` y `fondos.control #1E293B`.
+
+Uso: chip/botón/barras = fill sólido semántico; fondo suave = `TintPill` (alpha 0.12) o `tint(color, 0.08–0.16)`; texto sobre fill oscuro = blanco.
+
+### Lenguaje editorial (`src/components/editorial/`, exportados por `index.ts`)
+
+| Componente | Props / uso |
+|---|---|
+| `Eyebrow` | `text, color?=primary, style?` — marcador 18×4 + label `TYPE.label`. Reemplaza a los `sectionTitle` en mayúsculas. |
+| `BigNumber` | `value, unit?, label?, size?='display'\|'displaySm', tone?='ink'\|'primary'\|'accent'\|'onColor', labelTone?, color?, labelColor?, style?` — número como elemento gráfico; el valor lo formatea el caller (dato real). |
+| `ColorBlock` | `variant?='tint'\|'solid'\|'open', color?, radius?=`RADIUS.block`, elevated? (→`SHADOW.lift`), style?, children` — bloque cromático **sin borde**; no es una card. |
+| `ProgressBar` | `pct (0–100 clamped), color?=accent, trackColor?=hairline, height?=6, style?` |
+
+Composición: 1 número grande por bloque + label en mayúsculas + apoyo `caption`; filas asimétricas (`flex 3 / flex 2`); **bloque abierto** (sin bg/sombra, `borderBottomWidth 1` hairline) para filas navegables; nunca card dentro de card.
 
 - Botón primario = **relleno semántico + texto blanco bold** radius 16, sin halo. Resaltar = `TintPill { color, radius?, alpha?, style? }`.
-- `RADIUS`: cards 18 / interior 12 / buttons 16 / hero 20 (top de sheets). `SHADOW.card` (elevation suave) y `SHADOW.modal` (sombra hacia arriba). `PRESS_SCALE 0.97`.
-- **`pressedFeedback` obligatorio en TODO Pressable** (`style={({pressed}) => [styles.x, pressed && pressedFeedback]}`).
-- Modales = bottom-sheet slide, overlay `rgba(19,26,24,0.4)`, inputs `surfaceContainer` sin borde (error solo añade `borderColor: critico`), Guardar = relleno semántico, Cancelar = tonal. En ScrollView: `keyboardShouldPersistTaps="handled"` + `paddingBottom` con `useSafeAreaInsets().bottom`.
+- `RADIUS`: cards 24 / **block 20** (bloques cromáticos) / interior 16 / buttons 16 / pill 999 / hero 28 (top de sheets) / hairline 1. `SHADOW.card` (elevation 3), `SHADOW.lift` (hero, shadowColor `#155860`) y `SHADOW.modal` (hacia arriba). `PRESS_SCALE 0.96`.
+- **`pressedFeedback` obligatorio en TODO Pressable** (`style={({pressed}) => [styles.x, pressed && pressedFeedback]}`); targets ≥ 44×44.
+- Modales = bottom-sheet slide, overlay `PALETTE.scrim`, top radius `RADIUS.hero`, inputs `surfaceContainer` sin borde (error solo añade `borderColor: critico`), Guardar = relleno semántico, Cancelar = tonal. En ScrollView: `keyboardShouldPersistTaps="handled"` + `paddingBottom` con `useSafeAreaInsets().bottom`.
 - **Nunca** `disabled` en Guardar por errores de validación → validar al pulsar + errores inline.
-- Carga: `ActivityIndicator` por sección + estados vacíos; en Billetera: render instantáneo, detalle en background con caché a nivel módulo (nunca spinner de pantalla completa; no re-montar el FlatList del carrusel).
+- Carga: `ActivityIndicator` por sección + estados vacíos **con icono `Ionicons` (sin emoji)**; en Billetera: render instantáneo, detalle en background con caché a nivel módulo (nunca spinner de pantalla completa; no re-montar el FlatList del carrusel).
 - Patrón de pantalla: `SafeAreaView` bg surface + `StatusBar dark-content` + `ScrollView` (px 16, pb ~100-110, gap 16) + `BottomNavigationBar`. FAB bottom 86/right 20.
-- Tipografía sistema 400/500/600/700; títulos 24 bold, saldos 28, card 16-17, labels 12, cuerpo 13-14. Sin tracking negativo.
+- Tipografía vía **`TYPE`**: `display 52/700`, `displaySm 36/700`, `title 28/700`, `subtitle 18/600`, `body 14/400`, `caption 12/500`, `label 11/700 uppercase (ls 1.2)`. Ritmo `SPACE = { xs 4, sm 8, md 16, lg 24, xl 32, xxl 48 }`. Sistema 400/500/600/700, **sin tracking negativo**.
+- Assets: `assets/icon-1024.png` (icono, esquinas `#155860`), `assets/mascota.png` (splash, fondo `#155860`), ambos derivados de `assets/reloj1.jpg`; visibles solo en dev build/EAS (no en Expo Go).
 
 ## 6. Componentes (tabla de props — usar estos, no recrear)
 
@@ -134,7 +151,7 @@ Uso: chip/botón/barras = fill sólido semántico; fondo suave = `TintPill` (alp
 | `QuickMetricsCard` | racha + cumplimiento % (Home) |
 | `ProjectsProgressCard` | `proyectos` (ProyectoConProgreso) |
 | `GoalProgressCard` / `ComparisonCard` / `DistributionCard` | cards mock de métricas |
-| `BottomNavigationBar` (`ButtonNavigationBar.tsx`) | `activeTab, onSelectTab?: (tab)=>void`; píldora flotante blanca; activa en esmeralda sin halo |
+| `BottomNavigationBar` (`ButtonNavigationBar.tsx`) | `activeTab, onSelectTab?: (tab)=>void`; píldora flotante blanca; activa en `primary #155860` sin halo |
 | `CuentaCard` | `data: CuentaCardData {id,nombre,entidad,divisa,monto,colorInicio,colorFin}` + LinearGradient |
 | `WalletCarousel` (`WalletCarrousel.tsx`) | `cuentas, selectedIndex, onSelectCuenta`; React.memo; peeking (seleccionada 1 / adyacentes 0.88) + dots **Pressables** (32×32 + hitSlop 6 ≈ 44×44) que llaman a `handleCardPress`; padding lateral exacto `(W - CARD)/2` |
 | `AccountSummary` | `cuenta, ingresosMes, egresosMes, onIngreso, onEgreso, onTransferir` |
@@ -172,6 +189,7 @@ Uso: chip/botón/barras = fill sólido semántico; fondo suave = `TintPill` (alp
 | `InsightsCard` / `PeriodSelector` / `TimeDistributionCard` / `TrendsComparisonCard` / `ConsistencyCard` / `PlanningReliabilityCard` / `WeeklyOverviewCard` | bloques de Métricas |
 | `AddConductaSheet` | `visible, conducta, onClose, onSaved` — registro de una **ocurrencia** de una conducta existente |
 | `NuevaConductaSheet` | `visible, onClose, onSaved` — **alta** de conducta (`crearConducta` → `origen='propia'`); nombre 2–60, categoría (claves de `PALETTE.categorias`), modalidad evitación total/límite, frecuencia/límite/unidad; sin semillas: la lista de conductas nace acá |
+| `Eyebrow` / `BigNumber` / `ColorBlock` / `ProgressBar` (`components/editorial/`) | lenguaje editorial (props en §5); `Eyebrow` unifica los títulos de sección, `BigNumber` compone números reales ya formateados, `ColorBlock` agrupa contenido con color **sin ser card**, `ProgressBar` reemplaza los tracks ad-hoc |
 
 ## 7. Validación y seguridad (obligatorio en toda entrada)
 
@@ -182,7 +200,7 @@ Uso: chip/botón/barras = fill sólido semántico; fondo suave = `TintPill` (alp
 
 ## 8. Decisiones cerradas (no re-discutir)
 
-- Neón eliminado por el usuario → superficies tintadas + esmeralda sólida.
+- Neón eliminado por el usuario → superficies tintadas + fill sólido de identidad (hoy `primary #155860`; antes esmeralda `#16876A`, reemplazada en el rediseño Agenda 2.0).
 - native-stack solo si no hay pop animado (nunca el root). Transición = la de `transition.ts`.
 - La vista es **Actividades** (no "tareas"): selector = tipo/área creable; `proyecto_id` = origen opcional.
 - `ActividadesScreen` carga TODAS las áreas del día con `getActividades(fecha)` y filtra en memoria.
@@ -214,6 +232,10 @@ Uso: chip/botón/barras = fill sólido semántico; fondo suave = `TintPill` (alp
 
 - **Corrección de 8 puntos (sprint posterior al plan de 5 bloques)**: **1. Sin navegación por gesto** — `AppNavigator.screenOptions.gestureEnabled = false` y `app.json → android.predictiveBackGestureEnabled = false`: el swipe-back de la pila capturaba todo gesto horizontal de la pantalla y le robaba el drag al carrusel de Billetera; el único camino entre módulos es el Bottom Nav. `react-native-gesture-handler` sigue en `App.tsx`/`index.ts` (lo pide `@react-navigation/stack`). **2. `WalletCarrousel.tsx`** — el paginador dejó de ser `View` mudo: ahora es `Pressable` (32×32 + `hitSlop` 6 ≈ 44×44, con `pressedFeedback`) que llama a `handleCardPress(index)`; `contentContainerStyle.paddingHorizontal` corregido a `(SCREEN_WIDTH - CARD_WIDTH)/2` para que el offset exacto de la tarjeta centrada sea `index * SNAP_INTERVAL` (lo que `handleScroll` redondea); toda celda se renderiza con el mismo árbol `TintPill > Pressable` usando `alpha={isSelected ? 0.12 : 0}` para evitar unmount/remount a mitad de scroll. `Billetera.tsx` intacto (`selectedCuentaId` sigue siendo la única fuente). **3. Conductas sin mock** — eliminada `asegurarConductasIniciales()` (definida pero nunca llamada), `getConductasActivas` filtra `origen = 'propia'` (las filas de ejemplo existentes quedan en SQLite pero ocultas; sin DELETE ni migración), nuevo `crearConducta()` con query parametrizada y nuevo sheet `NuevaConductaSheet.tsx` (nombre 2–60 con `validarTexto`, categoría con claves reales de `PALETTE.categorias` para que `AvoidanceCard` resuelva color, modalidad evitación total/límite + frecuencia/límite/unidad, botón **nunca** `disabled`); alta desde `Metricas.tsx` (botón `+` en la cabecera y CTA "+ Crear conducta" en el estado vacío). **4. `AddMealSheet.tsx`** — eliminado el estado `isSearching`: la lista de resultados está **siempre** visible y hace scroll propio dentro de `maxHeight: 250` (contenedor `overflow:'hidden'` + `ScrollView` con `flexShrink:1` y `nestedScrollEnabled`), sin `borderBottom` en el último ítem; el body del sheet con `flexShrink:1` y `errorBox`/`footer` con `flexShrink:0` para que el footer quede anclado bajo `maxHeight:'92%'`. **5. Métricas visual** — **diferido** por decisión del usuario. Typecheck `--noEmit` exit 0 tras todo el sprint.
 
+- **Rediseño visual "Expressive Editorial Personal Dashboard" / Agenda 2.0 — tanda 1 (Home, Métricas, Comida)**: **FASE 0** — `src/theme/theme.ts` reescrito: lienzo `surface #FFFFFF`, identidad `primary #155860` (mismo teal del icono), `accent #0891B2`, `scrim`, `fondos.identidad #EDF6F7`, escala **`TYPE`** (display 52 / displaySm 36 / title 28 / subtitle 18 / body 14 / caption 12 / label 11 uppercase, sin tracking negativo), **`SPACE`**, `RADIUS` (cards 24, **block 20**, interior 16, buttons 16, pill 999, hero 28), `SHADOW.lift` (shadowColor `#155860`), `PRESS_SCALE 0.96`. Nuevos componentes **`src/components/editorial/`**: `Eyebrow`, `BigNumber`, `ColorBlock` (solid/tint/open, sin borde), `ProgressBar`, con `index.ts`. **FASE 1** — `assets/mascota.png` (~656 KB, esquinas transparentes) e `assets/icon-1024.png` (~1.1 MB, opaco teal `#155860`) recortados desde `assets/reloj1.jpg` (bbox por píxeles teal, máscara rounded-rect `r=0.16*min` que elimina el halo blanco, resize a 1024 con canvas teal); `app.json` apunta `icon`, `android.adaptiveIcon.foregroundImage` (`backgroundColor #155860`), plugin `expo-splash-screen` (`image ./assets/mascota.png`, `imageWidth 180`, `resizeMode contain`, `backgroundColor #155860`) y `web.favicon`. El script temporal `scratch/gen-assets.ps1` se borró. **FASE 2 `Home.tsx`** — `Eyebrow "Tu Día en Marcha"`; el "mapa del día" ahora es: fila 1 Actividades (`nodeSolid` teal + `BigNumber` `{hechas}/{total}` en `onColor`) y Alimentación (`nodeOpen` con `BigNumber` kcal en color comida y `'—'` sin datos); fila 2 Constancia (solid verde `habitos`, racha sin emoji) y Autocontrol (`nodeTint` ámbar 14%); fila 3 Estado Físico (`nodeOpenFull` con hairline y peso en BigNumber); fila 4 Modo Control (`nodeSolid` en `fondos.control`); hint de analytics → `ColorBlock tint` con `hintText`; botón de notificaciones → `iconBtn` 44×44; overlay del onboarding con `PALETTE.scrim`, handle, mascota (`Image require('../../assets/mascota.png')`) y `TYPE.title` (lógica y validación intactas); estilos nuevos (`nodeSolid/nodeTint/nodeOpen/nodeOpenFull/nodeHeadRow/nodeLabel=node TYPE.label/nodeSubOnColor/controlTitle/estadoRow/hintBlock/hintText`) y borrados `mapaTitle/mapNode/nodeIconBg/nodeValue/analyticsHint*` (incluida la sombra `elevation: 4`). **FASE 3 `Metricas.tsx`** — nuevo hero editorial: `Eyebrow "Panel de evolución"` + fila asimétrica (`BigNumber` display del `cumplimientoPct` de `getResumenGeneral` con apoyo `{completadas} de {totalPlanificadas} hechas` / `ColorBlock solid primary` con `BigNumber` de **racha** `getConsistencia()` nuevo en `loadData` y "Récord N días") + fila de contadores abiertos con divisores hairline (Actividades / Hábitos / Conductas); los 4 `summaryBox` idénticos desaparecieron; las 5 secciones usan `Eyebrow` con color semántico y los bloques Alimentación/Estado físico pasaron a composición **abierta** (`estadoOpen` con hairline) en vez de `estadoCard` con sombra; estados vacíos sobre `fondos.identidad`. **FASE 4 `FoodSummaryCard` + `Comida.tsx` + `MealTimeline` + `AddMealSheet`** — `FoodSummaryCard` ahora es `ColorBlock tint comida` con `Eyebrow`, `BigNumber` display de kcal y fila de macros abierta con divisores; `MealTimeline` con `Eyebrow "Comidas del día"` y registros abiertos (hairline, sin card con sombra); `Comida.tsx` sin `borderBottom` en el header de fecha, estado vacío con `Ionicons restaurant-outline` (sin 🍽️) y `Eyebrow "Retroalimentación"`; filas de `searchResults` en `AddMealSheet` con categoría en `TYPE.label` + nombre bold + referencia nutricional + número de kcal a la derecha y botón `+` circular tintado (fila entera sigue siendo el target con `accessibilityLabel "Agregar {alimento}"`). **Verificado**: `tsc --noEmit` exit 0 tras cada fase. **Sin**: migraciones, cambios de lógica de negocio, dependencias nuevas, toques de `ios/`/`android/`, datos mock, dark mode ni commits.
+
+- **Fix navegación a "Tu Esquina" (Control)**: `navigation.navigate('Control')` desde el bloque Modo Control de `Home.tsx` fallaba con *"The action 'NAVIGATE' with payload {name: 'Control'} was not handled by any navigator"*. **Causa**: el commit `7760822` agregó `import ControlScreen` (`AppNavigator.tsx:10`) y la entrada `Control: undefined` en `types.ts:12`, pero **nunca registró `<Stack.Screen name="Control">`** (verificado con `git log -S 'name="Control"'` → sin resultados); el tipo compilaba y en runtime no existía la ruta. **Solución**: pantalla registrada con `options={{ title: 'Tu Esquina', headerShown: false }}` (la pantalla dibuja su propio header oscuro con X → `navigation.goBack()`), mismo patrón que `Estado`. Limpieza relacionada: `Control.tsx` **sin hex sueltos** (16 reemplazos → `surfaceDark`, `fondos.control`, `onSurfaceVariant`, `outline`, `ash`, `onDark`, `onDarkMuted` [nuevo token `#E2E8F0` para texto secundario sobre oscuridad], `hairline`→`onDarkMuted` en el ActivityIndicator, `onAccent` en el botón claro) y `letterSpacing: -1` del timer → `0` (tracking negativo prohibido). `tsc --noEmit` exit 0. **Pendiente visual**: Control no sigue aún el lenguaje editorial (tanda 2, §11).
+
 ## 11. Pendiente (en orden)
 
 1. **Inspeccionar en el dispositivo** el saneo de alimentos legacy (`comida_alimento.origen='sistema'` sin `kcal_100`): no hay `*.db` en el repo, así que el `UPDATE ... activo=0` quedó sin probar en datos reales.
@@ -221,6 +243,8 @@ Uso: chip/botón/barras = fill sólido semántico; fondo suave = `TintPill` (alp
 3. **Prueba manual de la corrección de 8 puntos**: (a) el swipe horizontal no navega entre pantallas y el Bottom Nav sí; (b) en Billetera con ≥3 cuentas, arrastrar A→B→C y volver a A manteniendo el resumen sincronizado, tocar los puntos del paginador para saltar de cuenta, y verificar que la tarjeta centrada queda exactamente al centro; (c) en Métricas, con la tabla `conducta_evitar` sin filas propias: estado vacío + "+ Crear conducta" → alta y reaparición tras recargar (las filas `origen='ejemplo'` no deben renderizarse); (d) en Comida, `AddMealSheet` abierto muestra la lista de alimentos con consulta vacía, filtra con "arroz", hace scroll interno dentro de los 250px, el último ítem sin línea inferior y el footer **no** se pisa con el teclado ni con la lista.
 4. Verificar en Play Store/App que el widget (`MiDiaWidget`) siga viéndose bien con el plural "1 día".
 5. (Si corresponde) Iniciar nueva fase de desarrollo de nuevas features según el roadmap del usuario.
+6. **Checklist visual Agenda 2.0 (tanda 1)** — verificar en dispositivo/Expo Go: **Home** (Eyebrow, bloques sólidos/abiertos, BigNumber con datos reales, estado sin actividad con `'—'`, overlay de nombre con mascota + token `scrim`); **Métricas** (hero `cumplimientoPct` de `getResumenGeneral`, bloque racha de `getConsistencia()`, fila de contadores con divisores, 5 secciones con `Eyebrow`, Alimentación/Estado físico abiertos); **Comida** (`FoodSummaryCard` con kcal reales, `MealTimeline` sin cards apiladas, filas del buscador con kcal + botón `+`, estado vacío con icono y no emoji). **Icono/splash solo visibles en dev build o EAS** (Expo Go usa su propio icono): `assets/icon-1024.png` (esquinas `#155860`) y splash `assets/mascota.png` sobre `#155860`.
+7. **Tanda 2 del rediseño**: migrar al mismo lenguaje (Eyebrow / BigNumber / ColorBlock, bloques abiertos, `PALETTE.scrim` en overlays) el resto de módulos — Billetera, Actividades, Estado, Control, Perfil — y los bottom sheets aún no tocados. Incluye **hex sueltos preexistentes fuera de tanda 1**: `Billetera.tsx:33-36` (gradientes `#16876A/#0D5C49`, `#4F46A5`, `#E76F51`), `FinanceSummaryCard.tsx:29`, `notificaciones.ts:73` (`lightColor '#16876A'`), `MiDiaWidget.tsx:16/37/38` (`#FAF9F7`, `#16876A`).
 
 ## 12. Al tocar X, leer solo Y
 

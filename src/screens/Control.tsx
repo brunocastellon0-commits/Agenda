@@ -154,7 +154,7 @@ export default function ControlScreen({ navigation }: Props) {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.closeBtn}>
-          <Ionicons name="close" size={28} color="#64748B" />
+          <Ionicons name="close" size={28} color={PALETTE.ash} />
         </Pressable>
         <Text style={styles.headerTitle}>TU ESQUINA</Text>
         <View style={{ width: 28 }} />
@@ -169,7 +169,7 @@ export default function ControlScreen({ navigation }: Props) {
             <Text style={styles.title}>¿Qué tan fuerte es el impulso?</Text>
             <View style={styles.intensidíadScale}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => {
-                const color = n > 7 ? PALETTE.categorias.importante : n > 3 ? '#475569' : '#1E293B';
+                const color = n > 7 ? PALETTE.categorias.importante : n > 3 ? PALETTE.onSurfaceVariant : PALETTE.fondos.control;
                 const shadow = n > 7 ? { shadowColor: PALETTE.categorias.importante, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 } : {};
                 return (
                   <Pressable 
@@ -177,7 +177,7 @@ export default function ControlScreen({ navigation }: Props) {
                     onPress={() => handleIntensidíad(n)}
                     style={({pressed}) => [
                       styles.intensidíadBtn,
-                      { borderColor: color, backgroundColor: n > 7 ? tint(PALETTE.categorias.importante, 0.1) : '#0F172A' },
+                      { borderColor: color, backgroundColor: n > 7 ? tint(PALETTE.categorias.importante, 0.1) : PALETTE.surfaceDark },
                       shadow,
                       pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }
                     ]}
@@ -201,7 +201,7 @@ export default function ControlScreen({ navigation }: Props) {
               {CONTEXTOS.map(ctx => (
                 <Pressable 
                   key={ctx}
-                  style={({pressed}) => [styles.optionBtn, pressed && { backgroundColor: '#334155' }]}
+                  style={({pressed}) => [styles.optionBtn, pressed && { backgroundColor: PALETTE.onSurfaceVariant }]}
                   onPress={() => handleContexto(ctx)}
                 >
                   <Text style={styles.optionText}>{ctx}</Text>
@@ -213,7 +213,7 @@ export default function ControlScreen({ navigation }: Props) {
 
         {step === 'preparacion' && (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#E2E8F0" style={{ marginBottom: 24 }} />
+            <ActivityIndicator size="large" color={PALETTE.onDarkMuted} style={{ marginBottom: 24 }} />
             <Text style={styles.quoteText}>{getFrase('transicion')?.texto || 'Preparando round...'}</Text>
           </View>
         )}
@@ -246,7 +246,7 @@ export default function ControlScreen({ navigation }: Props) {
                           <Ionicons 
                             name={isPast ? "checkmark-circle" : isCurrent ? "ellipse-outline" : "ellipse"} 
                             size={20} 
-                            color={isPast ? PALETTE.categorias.finanzas : isCurrent ? "#F8FAFC" : "#334155"} 
+                            color={isPast ? PALETTE.categorias.finanzas : isCurrent ? PALETTE.onDark : PALETTE.onSurfaceVariant} 
                           />
                           <Text style={[styles.comboText, isCurrent && styles.comboTextActive]}>{paso}</Text>
                         </Pressable>
@@ -301,7 +301,7 @@ export default function ControlScreen({ navigation }: Props) {
 
         {step === 'final' && (
           <View style={styles.centerContainer}>
-            <Ionicons name="shield-checkmark" size={64} color="#334155" style={{ marginBottom: 24 }} />
+            <Ionicons name="shield-checkmark" size={64} color={PALETTE.onSurfaceVariant} style={{ marginBottom: 24 }} />
             <Text style={styles.title}>Round Registrado.</Text>
             
             {fraseActual?.categoria === 'post_recaida' && (
@@ -321,46 +321,46 @@ export default function ControlScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
+  container: { flex: 1, backgroundColor: PALETTE.surfaceDark },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
   closeBtn: { padding: 8 },
-  headerTitle: { fontSize: 14, fontWeight: '800', color: '#64748B', letterSpacing: 2 },
+  headerTitle: { fontSize: 14, fontWeight: '800', color: PALETTE.ash, letterSpacing: 2 },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40, justifyContent: 'center' },
   centerContainer: { alignItems: 'center', width: '100%' },
-  superTitle: { fontSize: 16, color: '#94A3B8', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 16 },
-  title: { fontSize: 28, fontWeight: '800', color: '#F8FAFC', marginBottom: 32, textAlign: 'center', lineHeight: 34 },
+  superTitle: { fontSize: 16, color: PALETTE.outline, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 16 },
+  title: { fontSize: 28, fontWeight: '800', color: PALETTE.onDark, marginBottom: 32, textAlign: 'center', lineHeight: 34 },
   intensidíadScale: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 12 },
   intensidíadBtn: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
-  intensidíadText: { fontSize: 20, fontWeight: '700', color: '#F8FAFC' },
+  intensidíadText: { fontSize: 20, fontWeight: '700', color: PALETTE.onDark },
   intensidíadLabels: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 16 },
   optionsGrid: { width: '100%', gap: 12 },
-  optionBtn: { backgroundColor: '#1E293B', paddingVertical: 18, paddingHorizontal: 20, borderRadius: RADIUS.cards, borderWidth: 1, borderColor: '#334155', alignItems: 'center' },
-  optionText: { fontSize: 16, fontWeight: '600', color: '#E2E8F0' },
+  optionBtn: { backgroundColor: PALETTE.fondos.control, paddingVertical: 18, paddingHorizontal: 20, borderRadius: RADIUS.cards, borderWidth: 1, borderColor: PALETTE.onSurfaceVariant, alignItems: 'center' },
+  optionText: { fontSize: 16, fontWeight: '600', color: PALETTE.onDarkMuted },
   roundLabel: { fontSize: 16, fontWeight: '800', color: PALETTE.categorias.importante, letterSpacing: 2, marginBottom: 24 },
   timerCircle: { 
     width: 200, height: 200, 
     borderRadius: 100, 
     borderWidth: 6, 
-    borderColor: '#334155', 
+    borderColor: PALETTE.onSurfaceVariant, 
     alignItems: 'center', 
     justifyContent: 'center', 
     marginBottom: 32,
-    backgroundColor: '#0F172A',
+    backgroundColor: PALETTE.surfaceDark,
     shadowColor: PALETTE.categorias.importante,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15,
     shadowRadius: 30,
     elevation: 20
   },
-  timerText: { fontSize: 64, fontWeight: '800', color: '#F8FAFC', fontVariant: ['tabular-nums'], letterSpacing: -1 },
-  quoteText: { fontSize: 22, fontWeight: '700', color: '#E2E8F0', textAlign: 'center', lineHeight: 32, marginBottom: 32, paddingHorizontal: 8 },
+  timerText: { fontSize: 64, fontWeight: '800', color: PALETTE.onDark, fontVariant: ['tabular-nums'], letterSpacing: 0 },
+  quoteText: { fontSize: 22, fontWeight: '700', color: PALETTE.onDarkMuted, textAlign: 'center', lineHeight: 32, marginBottom: 32, paddingHorizontal: 8 },
   intervencionCard: { 
-    backgroundColor: '#1E293B', 
+    backgroundColor: PALETTE.fondos.control, 
     padding: 24, 
     borderRadius: RADIUS.cards, 
     width: '100%', 
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
+    borderColor: tint(PALETTE.onAccent, 0.05),
     borderLeftWidth: 4, 
     borderLeftColor: PALETTE.categorias.objetivos,
     shadowColor: PALETTE.categorias.objetivos,
@@ -369,19 +369,19 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 16
   },
-  intervencionTitle: { fontSize: 13, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 16 },
-  intervencionBody: { fontSize: 16, color: '#F8FAFC', lineHeight: 26, fontWeight: '500' },
+  intervencionTitle: { fontSize: 13, fontWeight: '800', color: PALETTE.outline, letterSpacing: 1.5, marginBottom: 16 },
+  intervencionBody: { fontSize: 16, color: PALETTE.onDark, lineHeight: 26, fontWeight: '500' },
   comboRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  comboText: { fontSize: 16, color: '#94A3B8', fontWeight: '500' },
-  comboTextActive: { color: '#F8FAFC', fontWeight: '700' },
-  hintText: { fontSize: 14, color: '#64748B', textAlign: 'center', fontStyle: 'italic' },
+  comboText: { fontSize: 16, color: PALETTE.outline, fontWeight: '500' },
+  comboTextActive: { color: PALETTE.onDark, fontWeight: '700' },
+  hintText: { fontSize: 14, color: PALETTE.ash, textAlign: 'center', fontStyle: 'italic' },
   decisionOptions: { width: '100%', gap: 12 },
-  decBtn: { backgroundColor: '#F8FAFC', paddingVertical: 18, borderRadius: RADIUS.buttons, alignItems: 'center' },
-  decText: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
-  decBtnAlt: { backgroundColor: '#1E293B', borderWidth: 1, borderColor: '#334155' },
-  decTextAlt: { fontSize: 16, fontWeight: '700', color: '#F8FAFC' },
+  decBtn: { backgroundColor: PALETTE.surfaceContainerLowest, paddingVertical: 18, borderRadius: RADIUS.buttons, alignItems: 'center' },
+  decText: { fontSize: 16, fontWeight: '800', color: PALETTE.ink },
+  decBtnAlt: { backgroundColor: PALETTE.fondos.control, borderWidth: 1, borderColor: PALETTE.onSurfaceVariant },
+  decTextAlt: { fontSize: 16, fontWeight: '700', color: PALETTE.onDark },
   decBtnGhost: { backgroundColor: 'transparent', marginTop: 12 },
-  decTextGhost: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  decTextGhost: { fontSize: 14, fontWeight: '600', color: PALETTE.ash },
   finishBtn: { backgroundColor: PALETTE.primary, paddingVertical: 18, paddingHorizontal: 40, borderRadius: RADIUS.buttons, marginTop: 32, width: '100%', alignItems: 'center' },
-  finishBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' }
+  finishBtnText: { color: PALETTE.onAccent, fontSize: 16, fontWeight: '800' }
 });

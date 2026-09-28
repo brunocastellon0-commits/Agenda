@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { PALETTE, SHADOW, RADIUS, pressedFeedback } from '../theme/theme';
+import { PALETTE, TYPE, pressedFeedback } from '../theme/theme';
+import { Eyebrow, BigNumber, ColorBlock } from './editorial';
 
 import { ResumenNutricional } from '../repositories/comidaRepo';
 import { formatEstimado } from '../utils/nutricion';
@@ -25,11 +26,8 @@ export function FoodSummaryCard({ comidasCount, ultimaComida, resumenNutricional
   const body = (
     <>
       <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <MaterialIcons name="restaurant" size={20} color={PALETTE.categorias.ocio} />
-          <Text style={styles.title}>Alimentación</Text>
-        </View>
-        {onPress && <MaterialIcons name="chevron-right" size={20} color={PALETTE.outline} />}
+        <Eyebrow text="Alimentación" color={PALETTE.categorias.comida} />
+        {onPress && <MaterialIcons name="chevron-right" size={20} color={PALETTE.categorias.comida} />}
       </View>
 
       <View style={styles.content}>
@@ -37,18 +35,38 @@ export function FoodSummaryCard({ comidasCount, ultimaComida, resumenNutricional
           <Text style={styles.countText}>Aún no registraste comidas este día</Text>
         ) : (
           <>
+            <BigNumber
+              value={hayEstimacion ? formatEstimado(resumenNutricional.kcal, '') : '—'}
+              unit={hayEstimacion ? 'kcal' : undefined}
+              size="display"
+              color={PALETTE.categorias.comida}
+              label={
+                `${comidasCount} ${comidasCount === 1 ? 'comida' : 'comidas'}` +
+                (ultimaComida ? ` · última ${capitalizar(ultimaComida)}` : '')
+              }
+            />
             <View style={styles.macroRow}>
-              <Text style={styles.kcalText}>
-                {hayEstimacion ? formatEstimado(resumenNutricional.kcal, ' kcal') : '—'}
-              </Text>
-              <Text style={styles.macrosText}>
-                P: {hayEstimacion ? formatEstimado(resumenNutricional.prot, 'g') : '—'} · C: {hayEstimacion ? formatEstimado(resumenNutricional.carb, 'g') : '—'} · G: {hayEstimacion ? formatEstimado(resumenNutricional.grasa, 'g') : '—'}
-              </Text>
+              <View style={styles.macroCell}>
+                <Text style={styles.macroLabel}>Proteínas</Text>
+                <Text style={styles.macroValue}>
+                  {hayEstimacion ? formatEstimado(resumenNutricional.prot, 'g') : '—'}
+                </Text>
+              </View>
+              <View style={styles.macroDivider} />
+              <View style={styles.macroCell}>
+                <Text style={styles.macroLabel}>Carbos</Text>
+                <Text style={styles.macroValue}>
+                  {hayEstimacion ? formatEstimado(resumenNutricional.carb, 'g') : '—'}
+                </Text>
+              </View>
+              <View style={styles.macroDivider} />
+              <View style={styles.macroCell}>
+                <Text style={styles.macroLabel}>Grasas</Text>
+                <Text style={styles.macroValue}>
+                  {hayEstimacion ? formatEstimado(resumenNutricional.grasa, 'g') : '—'}
+                </Text>
+              </View>
             </View>
-            <Text style={styles.subText}>
-              {comidasCount} {comidasCount === 1 ? 'comida' : 'comidas'}
-              {ultimaComida ? ` · Última: ${capitalizar(ultimaComida)}` : ''}
-            </Text>
           </>
         )}
       </View>
@@ -56,68 +74,64 @@ export function FoodSummaryCard({ comidasCount, ultimaComida, resumenNutricional
   );
 
   if (!onPress) {
-    return <View style={styles.card}>{body}</View>;
+    return (
+      <ColorBlock variant="tint" color={PALETTE.categorias.comida} style={styles.card}>
+        {body}
+      </ColorBlock>
+    );
   }
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && pressedFeedback]}
+      style={({ pressed }) => [pressed && pressedFeedback]}
       onPress={onPress}
+      accessibilityRole="button"
     >
-      {body}
+      <ColorBlock variant="tint" color={PALETTE.categorias.comida} style={styles.card}>
+        {body}
+      </ColorBlock>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: PALETTE.surfaceContainerLowest,
-    borderRadius: RADIUS.cards,
-    padding: 16,
-    ...SHADOW.card,
+    gap: 8,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: PALETTE.ink,
   },
   content: {
-    gap: 4,
+    gap: 8,
   },
   countText: {
-    fontSize: 14,
+    ...TYPE.body,
     color: PALETTE.ink,
-    fontWeight: '500',
-  },
-  subText: {
-    fontSize: 12,
-    color: PALETTE.onSurfaceVariant,
   },
   macroRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-    marginBottom: 4,
+    alignItems: 'stretch',
+    borderTopWidth: 1,
+    borderTopColor: PALETTE.hairline,
+    paddingTop: 12,
   },
-  kcalText: {
-    fontSize: 20,
+  macroCell: {
+    flex: 1,
+    gap: 2,
+  },
+  macroDivider: {
+    width: 1,
+    backgroundColor: PALETTE.hairline,
+  },
+  macroLabel: {
+    ...TYPE.label,
+  },
+  macroValue: {
+    fontSize: 16,
     fontWeight: '700',
     color: PALETTE.ink,
-  },
-  macrosText: {
-    fontSize: 13,
-    color: PALETTE.onSurfaceVariant,
-    fontWeight: '500',
+    letterSpacing: 0,
   },
 });

@@ -79,6 +79,15 @@ export default function AppNavigator() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="Control"
+          component={ControlScreen}
+          options={{
+            title: 'Tu Esquina',
+            // La pantalla dibuja su propio header (SafeAreaView oscuro + X/goBack)
+            headerShown: false,
+          }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

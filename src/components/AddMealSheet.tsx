@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, TextInput, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme';
+import { PALETTE, RADIUS, SHADOW, TYPE, pressedFeedback, tint } from '../theme/theme';
 import { buscarAlimentos, registrarComida, TipoComida, Alimento } from '../repositories/comidaRepo';
 import {
   UnidadMedida,
@@ -275,22 +275,37 @@ export default function AddMealSheet({ visible, fecha, onClose, onSave }: Props)
                     <ActivityIndicator color={PALETTE.primary} style={{ margin: 20 }} />
                   ) : resultados.length > 0 ? (
                     resultados.map((al, idx) => (
-                      <Pressable 
-                        key={al.id} 
+                      <Pressable
+                        key={al.id}
                         style={({pressed}) => [
                           styles.resultItem,
                           idx === resultados.length - 1 && styles.resultItemLast,
                           pressed && pressedFeedback,
                         ]}
                         onPress={() => addAlimento(al)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Agregar ${al.nombre}`}
                       >
-                        <View>
+                        <View style={styles.resultMain}>
+                          <Text style={styles.resultCat}>{al.categoria}</Text>
                           <Text style={styles.resultName}>{al.nombre}</Text>
-                          <Text style={styles.resultDetails}>
-                            {al.categoria} · {formatNutritionReference(al.kcal_100, al.unidad_base)}
+                          <Text style={styles.resultRef}>
+                            {formatNutritionReference(al.kcal_100, al.unidad_base)}
                           </Text>
                         </View>
-                        <Ionicons name="add-circle-outline" size={24} color={PALETTE.primary} />
+                        <View style={styles.resultRight}>
+                          <View style={styles.resultNum}>
+                            <Text style={styles.resultKcal}>
+                              {formatEstimado(al.kcal_100, '')}
+                            </Text>
+                            <Text style={styles.resultUnit}>
+                              {al.kcal_100 != null ? 'kcal' : 'sin datos'}
+                            </Text>
+                          </View>
+                          <View style={styles.resultAdd}>
+                            <Ionicons name="add" size={22} color={PALETTE.primary} />
+                          </View>
+                        </View>
                       </Pressable>
                     ))
                   ) : (
@@ -559,6 +574,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: PALETTE.hairline,
@@ -566,15 +582,50 @@ const styles = StyleSheet.create({
   resultItemLast: {
     borderBottomWidth: 0,
   },
+  resultMain: {
+    flex: 1,
+    gap: 2,
+  },
+  resultCat: {
+    ...TYPE.label,
+    color: PALETTE.onSurfaceVariant,
+  },
   resultName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '700',
     color: PALETTE.ink,
-    marginBottom: 4,
+    letterSpacing: 0,
   },
-  resultDetails: {
-    fontSize: 13,
+  resultRef: {
+    ...TYPE.caption,
     color: PALETTE.onSurfaceVariant,
+  },
+  resultRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  resultNum: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  resultKcal: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: PALETTE.ink,
+    letterSpacing: 0,
+  },
+  resultUnit: {
+    ...TYPE.label,
+    color: PALETTE.onSurfaceVariant,
+  },
+  resultAdd: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: tint(PALETTE.primary, 0.12),
   },
   noResultsText: {
     padding: 20,

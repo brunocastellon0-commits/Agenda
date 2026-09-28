@@ -6,7 +6,8 @@ import { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme';
+import { PALETTE, RADIUS, TYPE, pressedFeedback } from '../theme/theme';
+import { Eyebrow, BigNumber, ColorBlock } from '../components/editorial';
 import { BottomNavigationBar } from '../components/ButtonNavigationBar';
 import { navigateToTab, TabKey } from '../navigation/tabs';
 
@@ -35,10 +36,12 @@ import {
   ResumenGeneral,
   DistribucionArea,
   Insight,
+  MetricaConsistencia,
   calcularRango,
   getResumenGeneral,
   getDistribucionPorArea,
   generarInsights,
+  getConsistencia,
 } from '../repositories/metricasRepo';
 
 type Props = StackScreenProps<RootStackParamList, 'Metricas'>;
@@ -51,6 +54,7 @@ export default function MetricasScreen({ navigation }: Props) {
   const [resumen, setResumen] = useState<ResumenGeneral | null>(null);
   const [distribucion, setDistribucion] = useState<DistribucionArea[]>([]);
   const [insights, setInsights] = useState<Insight[]>([]);
+  const [consistencia, setConsistencia] = useState<MetricaConsistencia | null>(null);
 
   // Secciones
   const [habitos, setHabitos] = useState<HabitoProgreso[]>([]);
@@ -69,12 +73,13 @@ export default function MetricasScreen({ navigation }: Props) {
     try {
       const hoyISO = toISODate(new Date());
 
-      const [habs, conds, acts, nutri, users] = await Promise.all([
+      const [habs, conds, acts, nutri, users, racha] = await Promise.all([
         getHabitosActivos(),
         getConductasActivas(),
         getActividades(hoyISO),
         getResumenDia(hoyISO),
-        getUsuarios()
+        getUsuarios(),
+        getConsistencia(),
       ]);
 
       let cmp = null;
@@ -87,6 +92,7 @@ export default function MetricasScreen({ navigation }: Props) {
       setActividadesHoy(acts);
       setComidaResumen(nutri);
       setEstadoFisico(cmp?.ultimo || null);
+      setConsistencia(racha);
 
       const rango = calcularRango(p);
       const res = await getResumenGeneral(rango);
@@ -135,6 +141,11 @@ export default function MetricasScreen({ navigation }: Props) {
   };
 
   const actsCompletadas = actividadesHoy.filter(a => a.completado).length;
+  const habitosCompletados = habitos.filter(h => h.completadoHoy).length;
+
+  const etiquetaPeriodo = periodo === 'hoy' ? 'de hoy' : periodo === 'semana' ? 'de la semana' : 'del mes';
+  const pct = resumen?.cumplimientoPct;
+  const hayComida = comidaResumen.itemsEstimados > 0;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -145,25 +156,57 @@ export default function MetricasScreen({ navigation }: Props) {
           <ActivityIndicator size="large" color={PALETTE.primary} style={styles.loader} />
         ) : (
           <>
-            {/* RESUMEN GLOBAL (Dashboard style) */}
-            <View style={styles.summaryGrid}>
-              <View style={styles.summaryBox}>
-                <Text style={styles.summaryLabel}>ACTIVIDADES</Text>
-                <Text style={styles.summaryValue}>{actsCompletadas} / {actividadesHoy.length}</Text>
+            {/* PANEL EDITORIAL: cumplimiento + racha + contadores */}
+            <View style={styles.heroBlock}>
+              <Eyebrow text="Panel de evolución" color={PALETTE.primary} />
+              <View style={styles.heroRow}>
+                <View style={styles.heroMain}>
+                  <BigNumber
+                    value={pct != null ? String(pct) : '—'}
+                    unit={pct != null ? '%' : undefined}
+                    size="display"
+                    tone="ink"
+                    label={
+                      resumen?.totalPlanificadas
+                        ? `Cumplimiento ${etiquetaPeriodo}`
+                        : `Sin planificaciones ${etiquetaPeriodo}`
+                    }
+                  />
+                  {resumen?.completadas != null && (
+                    <Text style={styles.heroSub}>
+                      {resumen.completadas} de {resumen.totalPlanificadas} hechas
+                    </Text>
+                  )}
+                </View>
+                <ColorBlock variant="solid" color={PALETTE.primary} style={styles.heroRacha}>
+                  <BigNumber
+                    value={String(consistencia?.rachaActual ?? 0)}
+                    unit={consistencia?.rachaActual === 1 ? 'día' : 'días'}
+                    size="displaySm"
+                    tone="onColor"
+                    label="Racha actual"
+                    labelTone="onColor"
+                  />
+                  <Text style={styles.heroRachaSub}>
+                    Récord {consistencia?.rachaMaxima ?? 0} días
+                  </Text>
+                </ColorBlock>
               </View>
-              <View style={styles.summaryBox}>
-                <Text style={styles.summaryLabel}>HÁBITOS</Text>
-                <Text style={styles.summaryValue}>{habitos.filter(h => h.completadoHoy).length} / {habitos.length}</Text>
-              </View>
-              <View style={styles.summaryBox}>
-                <Text style={styles.summaryLabel}>CONDUCTAS</Text>
-                <Text style={styles.summaryValue}>{conductas.length}</Text>
-              </View>
-              <View style={styles.summaryBox}>
-                <Text style={styles.summaryLabel}>COMIDA</Text>
-                <Text style={styles.summaryValue}>
-                  {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.kcal, '') : '—'}
-                </Text>
+              <View style={styles.statRow}>
+                <View style={styles.statCell}>
+                  <Text style={styles.statLabel}>Actividades</Text>
+                  <Text style={styles.statValue}>{actsCompletadas}/{actividadesHoy.length}</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statCell}>
+                  <Text style={styles.statLabel}>Hábitos</Text>
+                  <Text style={styles.statValue}>{habitosCompletados}/{habitos.length}</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statCell}>
+                  <Text style={styles.statLabel}>Conductas</Text>
+                  <Text style={styles.statValue}>{conductas.length}</Text>
+                </View>
               </View>
             </View>
 
@@ -172,9 +215,9 @@ export default function MetricasScreen({ navigation }: Props) {
             <InsightsCard insights={insights} />
 
             {/* SECCIÓN: HÁBITOS */}
-            <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-              <Text style={styles.sectionTitle}>Hábitos</Text>
-              <Pressable onPress={() => setShowManageModal(true)} style={({pressed}) => [styles.gearBtn, pressed && pressedFeedback]}>
+            <View style={styles.sectionHeader}>
+              <Eyebrow text="Hábitos" color={PALETTE.categorias.habitos} />
+              <Pressable accessibilityLabel="Configurar hábitos" onPress={() => setShowManageModal(true)} style={({pressed}) => [styles.gearBtn, pressed && pressedFeedback]}>
                 <Ionicons name="settings-outline" size={20} color={PALETTE.outline} />
               </Pressable>
             </View>
@@ -193,8 +236,8 @@ export default function MetricasScreen({ navigation }: Props) {
             )}
 
             {/* SECCIÓN: CONDUCTAS */}
-            <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
-              <Text style={styles.sectionTitle}>Conductas a Evitar</Text>
+            <View style={styles.sectionHeader}>
+              <Eyebrow text="Conductas a evitar" color={PALETTE.categorias.autocontrol} />
               <Pressable
                 accessibilityLabel="Crear conducta"
                 onPress={() => setShowNuevaConducta(true)}
@@ -225,43 +268,55 @@ export default function MetricasScreen({ navigation }: Props) {
 
             {/* SECCIÓN: ALIMENTACIÓN */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Alimentación (Hoy)</Text>
+              <Eyebrow text="Alimentación · Hoy" color={PALETTE.categorias.comida} />
             </View>
-            <Pressable 
-              style={({pressed}) => [styles.estadoCard, pressed && pressedFeedback]} 
+            <Pressable
+              style={({pressed}) => [styles.estadoOpen, pressed && pressedFeedback]}
               onPress={() => navigateToTab(navigation, 'metricas', 'comida')}
             >
-              <View>
-                <Text style={styles.estadoLabel}>CALORÍAS REGISTRADAS</Text>
-                <Text style={styles.estadoValue}>
-                  {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.kcal, ' kcal') : '—'}
-                </Text>
+              <View style={styles.estadoOpenMain}>
+                <BigNumber
+                  value={hayComida ? formatEstimado(comidaResumen.kcal, '') : '—'}
+                  unit={hayComida ? 'kcal' : undefined}
+                  size="displaySm"
+                  color={PALETTE.categorias.comida}
+                  label="Calorías registradas"
+                />
                 <Text style={styles.estadoSub}>
-                  P: {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.prot, 'g') : '—'} · C: {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.carb, 'g') : '—'} · G: {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.grasa, 'g') : '—'}
+                  P {hayComida ? formatEstimado(comidaResumen.prot, 'g') : '—'} ·
+                  C {hayComida ? formatEstimado(comidaResumen.carb, 'g') : '—'} ·
+                  G {hayComida ? formatEstimado(comidaResumen.grasa, 'g') : '—'}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={PALETTE.primary} />
+              <Ionicons name="chevron-forward" size={20} color={PALETTE.categorias.comida} />
             </Pressable>
 
             {/* SECCIÓN: ESTADO FÍSICO */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Estado Físico</Text>
+              <Eyebrow text="Estado físico" color={PALETTE.categorias.objetivos} />
             </View>
-            <Pressable 
-              style={({pressed}) => [styles.estadoCard, pressed && pressedFeedback]} 
+            <Pressable
+              style={({pressed}) => [styles.estadoOpen, pressed && pressedFeedback]}
               onPress={() => navigation.navigate('Estado')}
             >
-              <View>
-                <Text style={styles.estadoLabel}>ÚLTIMO REGISTRO</Text>
-                <Text style={styles.estadoValue}>{estadoFisico?.peso ? `${estadoFisico.peso} kg` : 'Sin datos'}</Text>
-                {estadoFisico?.fecha_medicion && <Text style={styles.estadoSub}>{estadoFisico.fecha_medicion}</Text>}
+              <View style={styles.estadoOpenMain}>
+                <BigNumber
+                  value={estadoFisico?.peso ? `${estadoFisico.peso}` : '—'}
+                  unit={estadoFisico?.peso ? 'kg' : undefined}
+                  size="displaySm"
+                  color={PALETTE.categorias.objetivos}
+                  label="Último registro"
+                />
+                <Text style={styles.estadoSub}>
+                  {estadoFisico?.fecha_medicion ?? 'Sin mediciones registradas'}
+                </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={PALETTE.primary} />
+              <Ionicons name="chevron-forward" size={20} color={PALETTE.categorias.objetivos} />
             </Pressable>
 
             {/* SECCIÓN: ANÁLISIS DE ACTIVIDADES */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Análisis de Actividades</Text>
+              <Eyebrow text="Análisis de actividades" color={PALETTE.categorias.actividades} />
             </View>
             <WeeklyOverviewCard resumen={resumen} />
             <TimeDistributionCard distribucion={distribucion} />
@@ -318,41 +373,65 @@ const styles = StyleSheet.create({
   loader: {
     marginTop: 40,
   },
-  summaryGrid: {
+  heroBlock: {
+    gap: 12,
+  },
+  heroRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 8,
+    gap: 12,
+    alignItems: 'stretch',
   },
-  summaryBox: {
-    flex: 1,
-    minWidth: '45%',
-    backgroundColor: PALETTE.surfaceContainerLowest,
-    borderRadius: RADIUS.cards,
-    padding: 16,
-    ...SHADOW.card,
-    elevation: 4,
+  heroMain: {
+    flex: 3,
+    justifyContent: 'center',
+    paddingVertical: 4,
+    paddingRight: 4,
   },
-  summaryLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+  heroRacha: {
+    flex: 2,
+    justifyContent: 'space-between',
+  },
+  heroSub: {
+    ...TYPE.body,
     color: PALETTE.onSurfaceVariant,
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    marginTop: 8,
   },
-  summaryValue: {
+  heroRachaSub: {
+    ...TYPE.caption,
+    color: PALETTE.onAccent,
+    opacity: 0.85,
+  },
+  statRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderTopWidth: 1,
+    borderTopColor: PALETTE.hairline,
+    paddingTop: 12,
+  },
+  statCell: {
+    flex: 1,
+    paddingHorizontal: 4,
+    gap: 2,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: PALETTE.hairline,
+  },
+  statLabel: {
+    ...TYPE.label,
+  },
+  statValue: {
     fontSize: 20,
     fontWeight: '700',
     color: PALETTE.ink,
+    letterSpacing: 0,
   },
   sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 8,
     marginBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: PALETTE.ink,
   },
   gearBtn: {
     width: 44,
@@ -363,15 +442,16 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.cards,
   },
   emptyCard: {
-    backgroundColor: PALETTE.surfaceContainer,
-    borderRadius: RADIUS.cards,
+    backgroundColor: PALETTE.fondos.identidad,
+    borderRadius: RADIUS.block,
     padding: 20,
     alignItems: 'center',
+    gap: 4,
   },
   emptyDesc: {
-    fontSize: 14,
-    color: PALETTE.onSurfaceVariant,
-    marginBottom: 8,
+    ...TYPE.body,
+    color: PALETTE.ink,
+    marginBottom: 4,
   },
   linkBtn: {
     alignItems: 'center',
@@ -382,30 +462,22 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: PALETTE.primary,
   },
-  estadoCard: {
-    backgroundColor: PALETTE.surfaceContainerLowest,
-    borderRadius: RADIUS.cards,
-    padding: 16,
+  estadoOpen: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    ...SHADOW.card,
-    elevation: 4,
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 8,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.hairline,
   },
-  estadoLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: PALETTE.onSurfaceVariant,
-    letterSpacing: 0.5,
-    marginBottom: 4,
-  },
-  estadoValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: PALETTE.ink,
+  estadoOpenMain: {
+    flex: 1,
+    gap: 4,
   },
   estadoSub: {
-    fontSize: 13,
+    ...TYPE.caption,
     color: PALETTE.onSurfaceVariant,
     marginTop: 4,
   },

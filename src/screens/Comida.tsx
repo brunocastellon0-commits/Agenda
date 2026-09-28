@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
-import { PALETTE, RADIUS, pressedFeedback, tint } from '../theme/theme';
+import { PALETTE, RADIUS, TYPE, pressedFeedback, tint } from '../theme/theme';
+import { Eyebrow } from '../components/editorial';
 import { BottomNavigationBar } from '../components/ButtonNavigationBar';
 import { navigateToTab, TabKey } from '../navigation/tabs';
 
@@ -153,7 +155,7 @@ export default function ComidaScreen({ navigation }: Props) {
 
             {registros.length === 0 && (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>🍽️</Text>
+                <Ionicons name="restaurant-outline" size={40} color={PALETTE.categorias.comida} />
                 <Text style={styles.emptyDesc}>Todavía no registraste comidas para este día.</Text>
               </View>
             )}
@@ -169,7 +171,7 @@ export default function ComidaScreen({ navigation }: Props) {
             {/* RETROALIMENTACIÓN */}
             {analisis && analisis.tendencias.length > 0 && (
               <View style={styles.feedbackSection}>
-                <Text style={styles.feedbackTitle}>RETROALIMENTACIÓN</Text>
+                <Eyebrow text="Retroalimentación" color={PALETTE.categorias.objetivos} />
                 <View style={styles.feedbackCard}>
                   {analisis.tendencias.map((t, i) => (
                     <Text key={i} style={styles.feedbackText}>"{t}"</Text>
@@ -207,9 +209,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: PALETTE.hairline,
-    backgroundColor: PALETTE.surfaceContainerLowest,
+    backgroundColor: PALETTE.surface,
   },
   navBtn: {
     paddingHorizontal: 20,
@@ -248,33 +248,24 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     alignItems: 'center',
+    gap: 12,
     paddingVertical: 40,
     marginBottom: 24,
   },
-  emptyIcon: {
-    fontSize: 32,
-    marginBottom: 12,
-  },
   emptyDesc: {
-    fontSize: 15,
+    ...TYPE.body,
     color: PALETTE.onSurfaceVariant,
     textAlign: 'center',
+    paddingHorizontal: 24,
   },
   feedbackSection: {
     marginTop: 8,
-  },
-  feedbackTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: PALETTE.onSurfaceVariant,
-    letterSpacing: 1,
-    marginBottom: 12,
-    marginLeft: 4,
+    gap: 12,
   },
   feedbackCard: {
     backgroundColor: tint(PALETTE.categorias.objetivos, 0.08),
     padding: 16,
-    borderRadius: RADIUS.cards,
+    borderRadius: RADIUS.block,
   },
   feedbackText: {
     fontSize: 15,

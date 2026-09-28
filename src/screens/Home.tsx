@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, StyleSheet, StatusBar, ScrollView, ActivityIndicator, Text, Pressable, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, StyleSheet, StatusBar, ScrollView, ActivityIndicator, Text, Pressable, TextInput, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { Usuario, getUsuarios, saveOrUpdateUsuario } from '../repositories/usuario';
@@ -9,7 +9,8 @@ import { requestWidgetUpdate } from 'react-native-android-widget';
 import { MiDiaWidget } from '../widgets/MiDiaWidget';
 import { Ionicons } from '@expo/vector-icons';
 
-import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme';
+import { PALETTE, RADIUS, SHADOW, TYPE, pressedFeedback, tint } from '../theme/theme';
+import { Eyebrow, BigNumber, ColorBlock } from '../components/editorial';
 import { BottomNavigationBar } from '../components/ButtonNavigationBar';
 import { navigateToTab } from '../navigation/tabs';
 import { RootStackParamList } from '../navigation/types';
@@ -183,137 +184,157 @@ export default function HomeScreen({ navigation }: Props) {
         <View style={styles.headerTop}>
           <ProfileBanner usuario={usuario} onPress={() => setShowEditProfile(true)} />
           <Pressable 
-            style={({pressed}) => [{ padding: 8, borderRadius: 20 }, pressed && pressedFeedback]}
+            style={({pressed}) => [styles.iconBtn, pressed && pressedFeedback]}
             onPress={() => setShowNotifSheet(true)}
           >
-            <Ionicons name="notifications-outline" size={24} color={PALETTE.ink} />
+            <Ionicons name="notifications-outline" size={22} color={PALETTE.ink} />
           </Pressable>
         </View>
 
-        <Text style={styles.mapaTitle}>Tu Día en Marcha</Text>
+        <Eyebrow text="Tu Día en Marcha" />
 
-        {/* MAPA DEL DÍA - ASIMÉTRICO */}
+        {/* MAPA DEL DÍA - ASIMÉTRICO: bloques sólidos, tintes y composición abierta */}
         <View style={styles.mapGrid}>
           
           {/* Fila 1 */}
           <View style={styles.mapRow}>
-            {/* Actividades */}
+            {/* Actividades — bloque sólido de identidad */}
             <Pressable 
-              style={({pressed}) => [styles.mapNode, styles.nodeLarge, { backgroundColor: PALETTE.fondos.autocontrol }, pressed && pressedFeedback]}
+              style={({pressed}) => [styles.nodeSolid, { backgroundColor: PALETTE.primary }, styles.nodeLarge, pressed && pressedFeedback]}
               onPress={() => navigateToTab(navigation, 'inicio', 'actividades')}
             >
-              <View style={[styles.nodeIconBg, { backgroundColor: tint(PALETTE.categorias.trabajo, 0.12) }]}>
-                <Ionicons name="calendar-outline" size={22} color={PALETTE.categorias.trabajo} />
+              <View style={styles.nodeHeadRow}>
+                <Text style={[styles.nodeLabel, { color: PALETTE.onAccent }]}>Actividades</Text>
+                <Ionicons name="calendar-outline" size={20} color={PALETTE.onAccent} />
               </View>
-              <Text style={styles.nodeLabel}>Actividades</Text>
-              <Text style={styles.nodeValue}>{actsCompletadas} / {actividadesHoy.length}</Text>
-              {proxActividad && (
-                <Text style={styles.nodeSubtext} numberOfLines={1}>Próxima: {proxActividad.hora} {proxActividad.titulo}</Text>
-              )}
+              <BigNumber
+                value={`${actsCompletadas}/${actividadesHoy.length}`}
+                tone="onColor"
+                size="displaySm"
+              />
+              <Text style={styles.nodeSubOnColor} numberOfLines={1}>
+                {proxActividad ? `Próxima: ${proxActividad.hora} ${proxActividad.titulo}` : 'Día resuelto'}
+              </Text>
             </Pressable>
 
-            {/* Alimentación */}
+            {/* Alimentación — composición abierta sobre el lienzo */}
             <Pressable 
-              style={({pressed}) => [styles.mapNode, styles.nodeSmall, pressed && pressedFeedback]}
+              style={({pressed}) => [styles.nodeOpen, styles.nodeSmall, pressed && pressedFeedback]}
               onPress={() => navigateToTab(navigation, 'inicio', 'comida')}
             >
-              <View style={[styles.nodeIconBg, { backgroundColor: tint(PALETTE.categorias.ocio, 0.12) }]}>
-                <Ionicons name="restaurant-outline" size={22} color={PALETTE.categorias.ocio} />
+              <View style={styles.nodeHeadRow}>
+                <Text style={styles.nodeLabel}>Alimentación</Text>
+                <Ionicons name="restaurant-outline" size={20} color={PALETTE.categorias.comida} />
               </View>
-              <Text style={styles.nodeLabel}>Alimentación</Text>
-              <Text style={[styles.nodeValue, { fontSize: 18 }]}>
-                {resumenNutricional.itemsEstimados > 0 ? formatEstimado(resumenNutricional.kcal, '') : '—'}
-              </Text>
-              <Text style={styles.nodeSubtext}>kcal registradas</Text>
+              <BigNumber
+                value={resumenNutricional.itemsEstimados > 0 ? formatEstimado(resumenNutricional.kcal, '') : '—'}
+                unit={resumenNutricional.itemsEstimados > 0 ? 'kcal' : undefined}
+                color={PALETTE.categorias.comida}
+                size="displaySm"
+                label="registradas hoy"
+              />
             </Pressable>
           </View>
 
           {/* Fila 2 */}
           <View style={styles.mapRow}>
-            {/* Hábitos / Constancia */}
+            {/* Constancia — bloque sólido de progreso */}
             <Pressable 
-              style={({pressed}) => [styles.mapNode, styles.nodeSmall, pressed && pressedFeedback]}
+              style={({pressed}) => [styles.nodeSolid, { backgroundColor: PALETTE.categorias.habitos }, styles.nodeSmall, pressed && pressedFeedback]}
               onPress={() => navigateToTab(navigation, 'inicio', 'metricas')}
             >
-              <View style={[styles.nodeIconBg, { backgroundColor: tint(PALETTE.categorias.habitos, 0.15) }]}>
-                <Ionicons name="leaf-outline" size={22} color={PALETTE.primary} />
+              <View style={styles.nodeHeadRow}>
+                <Text style={[styles.nodeLabel, { color: PALETTE.onAccent }]}>Constancia</Text>
+                <Ionicons name="flame-outline" size={20} color={PALETTE.onAccent} />
               </View>
-              <Text style={styles.nodeLabel}>Constancia</Text>
-              <Text style={[styles.nodeValue, { color: PALETTE.categorias.habitos }]}>🔥 {rachaDias}</Text>
-              <Text style={styles.nodeSubtext}>días en racha</Text>
+              <BigNumber
+                value={String(rachaDias)}
+                unit={rachaDias === 1 ? 'día' : 'días'}
+                tone="onColor"
+                size="displaySm"
+                label="en racha"
+                labelTone="onColor"
+              />
             </Pressable>
 
-            {/* Conductas */}
+            {/* Autocontrol — tinte de área */}
             <Pressable 
-              style={({pressed}) => [styles.mapNode, styles.nodeLarge, { backgroundColor: PALETTE.fondos.actividades }, pressed && pressedFeedback]}
+              style={({pressed}) => [styles.nodeTint, { backgroundColor: tint(PALETTE.categorias.autocontrol, 0.14) }, styles.nodeLarge, pressed && pressedFeedback]}
               onPress={() => navigateToTab(navigation, 'inicio', 'metricas')}
             >
-              <View style={[styles.nodeIconBg, { backgroundColor: tint(PALETTE.categorias.autocontrol, 0.15) }]}>
-                <Ionicons name="shield-checkmark-outline" size={22} color={PALETTE.categorias.autocontrol} />
+              <View style={styles.nodeHeadRow}>
+                <Text style={styles.nodeLabel}>Autocontrol</Text>
+                <Ionicons name="shield-checkmark-outline" size={20} color={PALETTE.categorias.autocontrol} />
               </View>
-              <Text style={styles.nodeLabel}>Autocontrol</Text>
-              {totalConductasLimite > 0 && (
-                <Text style={styles.nodeValue}>{conductasEnLimite} / {totalConductasLimite} límites</Text>
+              {totalConductasLimite > 0 ? (
+                <BigNumber
+                  value={`${conductasEnLimite}/${totalConductasLimite}`}
+                  size="displaySm"
+                  label="límites respetados"
+                />
+              ) : (
+                <Text style={styles.nodeSubtext}>Sin límites activos</Text>
               )}
-              {mejorRachaConducta > 0 && (
+              {mejorRachaConducta > 0 ? (
                 <Text style={styles.nodeSubtext}>Mejor racha activa: {mejorRachaConducta} d</Text>
-              )}
-              {totalConductasLimite === 0 && mejorRachaConducta === 0 && (
+              ) : totalConductasLimite > 0 ? (
                 <Text style={styles.nodeSubtext}>Todo en orden</Text>
-              )}
+              ) : null}
             </Pressable>
           </View>
 
-          {/* Fila 3 */}
+          {/* Fila 3 — composición abierta con separador */}
           <View style={styles.mapRow}>
-            {/* Estado Físico */}
             <Pressable 
-              style={({pressed}) => [styles.mapNode, styles.nodeFull, { backgroundColor: PALETTE.fondos.metricas }, pressed && pressedFeedback]}
+              style={({pressed}) => [styles.nodeOpenFull, pressed && pressedFeedback]}
               onPress={() => navigation.navigate('Estado')}
             >
               <View style={styles.estadoRow}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.nodeLabel}>Estado Físico</Text>
-                  <Text style={styles.nodeValue}>{ultimoEstado?.peso ? `${ultimoEstado.peso} kg` : 'Sin mediciones'}</Text>
-                  <Text style={styles.nodeSubtext}>Último registro: {ultimoEstado?.fecha_medicion || 'Nunca'}</Text>
+                  <BigNumber
+                    value={ultimoEstado?.peso ? `${ultimoEstado.peso}` : '—'}
+                    unit={ultimoEstado?.peso ? 'kg' : undefined}
+                    size="displaySm"
+                    label={ultimoEstado?.fecha_medicion ? `Último registro: ${ultimoEstado.fecha_medicion}` : 'Sin mediciones'}
+                  />
                 </View>
-                <View style={[styles.nodeIconBg, { backgroundColor: tint(PALETTE.categorias.objetivos, 0.12) }]}>
-                  <Ionicons name="body-outline" size={22} color={PALETTE.categorias.objetivos} />
-                </View>
+                <Ionicons name="body-outline" size={28} color={PALETTE.categorias.objetivos} />
               </View>
             </Pressable>
           </View>
 
-          {/* Fila 4: CONTROL (Tu Esquina) */}
+          {/* Fila 4: CONTROL — bloque oscuro */}
           <View style={styles.mapRow}>
             <Pressable 
               style={({pressed}) => [
-                styles.mapNode, 
-                styles.nodeFull, 
+                styles.nodeSolid,
+                styles.nodeFull,
                 { backgroundColor: PALETTE.fondos.control },
                 pressed && pressedFeedback
               ]}
               onPress={() => navigation.navigate('Control')}
             >
               <View style={styles.estadoRow}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.nodeLabel, { color: PALETTE.outline }]}>Modo Control</Text>
-                  <Text style={[styles.nodeValue, { color: PALETTE.onSurface }]}>Tu Esquina</Text>
-                  <Text style={[styles.nodeSubtext, { color: PALETTE.onSurfaceVariant }]}>¿Necesitás un momento?</Text>
+                  <Text style={styles.controlTitle}>Tu Esquina</Text>
+                  <Text style={[styles.nodeSubtext, { color: PALETTE.outline }]}>¿Necesitás un momento?</Text>
                 </View>
-                <View style={[styles.nodeIconBg, { backgroundColor: tint(PALETTE.categorias.control, 0.2) }]}>
-                  <Ionicons name="fitness-outline" size={22} color={PALETTE.categorias.control} />
-                </View>
+                <Ionicons name="fitness-outline" size={28} color={PALETTE.onDark} />
               </View>
             </Pressable>
           </View>
 
         </View>
 
-        <View style={styles.analyticsHint}>
-          <Ionicons name="analytics-outline" size={20} color={PALETTE.onSurfaceVariant} style={{marginRight: 8}} />
-          <Text style={styles.analyticsHintText}>Encuentra tu análisis detallado e historial en Métricas.</Text>
-        </View>
+        <ColorBlock variant="tint" color={PALETTE.primary} radius={RADIUS.block} style={styles.hintBlock}>
+          <View style={styles.nodeHeadRow}>
+            <Text style={styles.nodeLabel}>Análisis detallado</Text>
+            <Ionicons name="analytics-outline" size={20} color={PALETTE.primary} />
+          </View>
+          <Text style={styles.hintText}>Tu historial y tus tendencias viven en Métricas.</Text>
+        </ColorBlock>
 
       </ScrollView>
 
@@ -334,6 +355,12 @@ export default function HomeScreen({ navigation }: Props) {
             style={styles.nombreKav}
           >
             <View style={styles.nombreCard}>
+              <View style={styles.nombreHandle} />
+              <Image
+                source={require('../../assets/mascota.png')}
+                style={styles.nombreMascota}
+                resizeMode="contain"
+              />
               <Text style={styles.nombreTitulo}>¿Cómo te llamas?</Text>
               <Text style={styles.nombreDesc}>
                 Ingresá tu nombre para personalizar tu experiencia.
@@ -381,7 +408,7 @@ const styles = StyleSheet.create({
   },
   nombreOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(19,26,24,0.4)',
+    backgroundColor: PALETTE.scrim,
     zIndex: 100,
     justifyContent: 'flex-end',
   },
@@ -390,22 +417,37 @@ const styles = StyleSheet.create({
   },
   nombreCard: {
     backgroundColor: PALETTE.surfaceContainerLowest,
-    borderTopLeftRadius: RADIUS.cards,
-    borderTopRightRadius: RADIUS.cards,
+    borderTopLeftRadius: RADIUS.hero,
+    borderTopRightRadius: RADIUS.hero,
     padding: 24,
     paddingBottom: 32,
     ...SHADOW.modal,
   },
+  nombreHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+    backgroundColor: PALETTE.outline,
+    opacity: 0.5,
+  },
+  nombreMascota: {
+    width: 76,
+    height: 76,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
   nombreTitulo: {
+    ...TYPE.title,
     fontSize: 24,
-    fontWeight: '700',
-    color: PALETTE.ink,
     marginBottom: 8,
+    textAlign: 'center',
   },
   nombreDesc: {
-    fontSize: 14,
-    color: PALETTE.onSurfaceVariant,
+    ...TYPE.body,
     marginBottom: 20,
+    textAlign: 'center',
   },
   nombreInput: {
     backgroundColor: PALETTE.surfaceContainer,
@@ -453,29 +495,50 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
   },
-  mapaTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: PALETTE.onSurfaceVariant,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-    marginBottom: 16,
-    paddingHorizontal: 8,
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PALETTE.surfaceContainer,
   },
   mapGrid: {
     gap: 12,
+    marginTop: 16,
   },
   mapRow: {
     flexDirection: 'row',
     gap: 12,
   },
-  mapNode: {
-    backgroundColor: PALETTE.surfaceContainerLowest,
-    borderRadius: RADIUS.cards,
+  // Bloques con fill: el color hace el trabajo, sin sombra ni card blanca
+  nodeSolid: {
+    borderRadius: RADIUS.block,
     padding: 20,
-    ...SHADOW.card,
-    elevation: 4,
-    justifyContent: 'center',
+    minHeight: 148,
+    justifyContent: 'space-between',
+  },
+  nodeTint: {
+    borderRadius: RADIUS.block,
+    padding: 20,
+    minHeight: 148,
+    justifyContent: 'space-between',
+  },
+  // Composición abierta: directo sobre el lienzo + separador editorial
+  nodeOpen: {
+    minHeight: 148,
+    paddingVertical: 8,
+    paddingBottom: 16,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.hairline,
+  },
+  nodeOpenFull: {
+    flex: 1,
+    paddingVertical: 16,
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: PALETTE.hairline,
   },
   nodeLarge: {
     flex: 3,
@@ -486,48 +549,41 @@ const styles = StyleSheet.create({
   nodeFull: {
     flex: 1,
   },
-  nodeIconBg: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  nodeHeadRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   nodeLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: PALETTE.onSurfaceVariant,
-    marginBottom: 4,
-  },
-  nodeValue: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: PALETTE.ink,
-    marginBottom: 8,
+    ...TYPE.label,
+    flexShrink: 1,
   },
   nodeSubtext: {
-    fontSize: 13,
-    color: PALETTE.outline,
-    fontWeight: '500',
+    ...TYPE.caption,
+    marginTop: 4,
+  },
+  nodeSubOnColor: {
+    ...TYPE.caption,
+    color: PALETTE.onDark,
+  },
+  controlTitle: {
+    ...TYPE.title,
+    fontSize: 24,
+    color: PALETTE.onDark,
+    marginBottom: 4,
   },
   estadoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
   },
-  analyticsHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  hintBlock: {
     marginTop: 32,
-    marginBottom: 16,
-    paddingHorizontal: 20,
+    marginBottom: 8,
   },
-  analyticsHintText: {
-    fontSize: 13,
-    color: PALETTE.onSurfaceVariant,
-    textAlign: 'center',
-    flex: 1,
+  hintText: {
+    ...TYPE.body,
+    color: PALETTE.ink,
   }
 });
