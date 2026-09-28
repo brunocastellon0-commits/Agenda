@@ -254,7 +254,7 @@ export function AllAreasDayView({
           </View>
           <Text style={styles.emptyTitle}>Día despejado</Text>
           <Text style={styles.emptySubtitle}>
-            No tienes actividades programadas para este día en ninguna área.
+            No tenés actividades programadas para este día en ninguna área.
           </Text>
           <Pressable
             onPress={onAddPress}
@@ -428,7 +428,7 @@ export function AllAreasDayView({
                       ]}
                       accessible={true}
                       accessibilityRole="button"
-                      accessibilityLabel={`Área ${tipo.nombre}, ${totalPendientes} pendientes de ${totalActividades} actividades`}
+                      accessibilityLabel={`Área ${tipo.nombre}, ${totalPendientes} pendientes de ${totalActividades} actividad${totalActividades === 1 ? '' : 'es'}`}
                     >
                       <View style={styles.areaAccordionLeft}>
                         <View style={[styles.areaIconBox, { backgroundColor: tint(tipo.color, 0.14) }]}>

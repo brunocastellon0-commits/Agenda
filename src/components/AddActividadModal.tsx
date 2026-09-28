@@ -191,7 +191,7 @@ export function AddActividadModal({
     }
 
     if (!tipoIdSeleccionado) {
-      setError('Debes seleccionar un área para la actividad.')
+      setError('Tenés que seleccionar un área para la actividad.')
       return
     }
 
@@ -244,7 +244,7 @@ export function AddActividadModal({
                   setTitulo(val)
                   if (error) setError(null)
                 }}
-                placeholder="¿Qué necesitas hacer?"
+                placeholder="¿Qué necesitás hacer?"
                 placeholderTextColor={PALETTE.outline}
                 maxLength={60}
                 autoFocus={true}

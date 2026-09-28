@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { PALETTE } from '../theme/theme';
 import { Usuario } from '../repositories/usuario';
 
 interface Props {
   usuario: Usuario;
+  onPress?: () => void;
 }
 
 function obtenerSaludo(): string {
@@ -24,16 +25,14 @@ function obtenerFechaFormateada(): string {
   return `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
 }
 
-import { Pressable } from 'react-native';
-
-export function ProfileBanner({ usuario, onPress }: Props & { onPress?: () => void }) {
+export function ProfileBanner({ usuario, onPress }: Props) {
   const saludo = obtenerSaludo();
   const fecha = obtenerFechaFormateada();
 
   return (
     <Pressable onPress={onPress} style={styles.bannerContainer}>
       <Text style={styles.saludo}>
-        {saludo}, {usuario.nombre || 'viajero'}
+        {saludo}{usuario.nombre ? `, ` + usuario.nombre : ''}
       </Text>
       <Text style={styles.fecha}>{fecha}</Text>
     </Pressable>

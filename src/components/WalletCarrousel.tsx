@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import {
   View,
   FlatList,
@@ -9,7 +9,7 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { CuentaCard, CuentaCardData } from './CuentaCard';
-import { PALETTE } from '../theme/theme';
+import { PALETTE, pressedFeedback } from '../theme/theme';
 import { TintPill } from './TintPill';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -25,25 +25,64 @@ interface Props {
 
 export const WalletCarousel = React.memo(({ cuentas, selectedIndex, onSelectCuenta }: Props) => {
   const flatListRef = useRef<FlatList<CuentaCardData>>(null);
+  // Índice ya comunicado (se actualiza de forma síncrona) para no repetir commits.
+  const committedRef = useRef(selectedIndex);
+  // Offset real del carrusel, para sincronizar estado → scroll.
+  const offsetRef = useRef(0);
 
-  const handleMomentumScrollEnd = useCallback(
+  const commitIndex = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= cuentas.length) return;
+      if (index === committedRef.current) return;
+      committedRef.current = index;
+      onSelectCuenta(index);
+    },
+    [cuentas.length, onSelectCuenta]
+  );
+
+  // El índice se compromete en CADA evento de scroll: `onMomentumScrollEnd` solo
+  // se emite si hay velocidad al soltar, por lo que arrastrar lento dejaba el
+  // FlatList en la cuenta B y el resumen en la cuenta A.
+  const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = event.nativeEvent.contentOffset.x;
-      const index = Math.round(offsetX / SNAP_INTERVAL);
-      if (index >= 0 && index < cuentas.length && index !== selectedIndex) {
-        onSelectCuenta(index);
-      }
+      offsetRef.current = offsetX;
+      commitIndex(Math.round(offsetX / SNAP_INTERVAL));
     },
-    [cuentas.length, selectedIndex, onSelectCuenta]
+    [commitIndex]
   );
 
   const handleCardPress = useCallback(
     (index: number) => {
-      flatListRef.current?.scrollToIndex({ index, animated: true });
+      // scrollToOffset en vez de scrollToIndex: evita el invariant de
+      // VirtualizedList por la falta de getItemLayout con padding lateral.
+      committedRef.current = index;
+      offsetRef.current = Math.max(0, index * SNAP_INTERVAL);
+      flatListRef.current?.scrollToOffset({ offset: offsetRef.current, animated: true });
       onSelectCuenta(index);
     },
     [onSelectCuenta]
   );
+
+  const handleScrollToIndexFailed = useCallback(
+    (info: { index: number; highestMeasuredFrameIndex: number; averageItemLength: number }) => {
+      const offset = Math.max(0, info.index * SNAP_INTERVAL);
+      offsetRef.current = offset;
+      flatListRef.current?.scrollToOffset({ offset, animated: false });
+      commitIndex(info.index);
+    },
+    [commitIndex]
+  );
+
+  // Selección cambiada por código (p. ej. cuenta recién creada) → mover el carrusel.
+  useEffect(() => {
+    committedRef.current = selectedIndex;
+    const target = Math.max(0, selectedIndex * SNAP_INTERVAL);
+    if (Math.abs(offsetRef.current - target) > 4) {
+      offsetRef.current = target;
+      flatListRef.current?.scrollToOffset({ offset: target, animated: true });
+    }
+  }, [selectedIndex]);
 
   return (
     <View style={styles.container}>
@@ -54,39 +93,57 @@ export const WalletCarousel = React.memo(({ cuentas, selectedIndex, onSelectCuen
         showsHorizontalScrollIndicator={false}
         snapToInterval={SNAP_INTERVAL}
         decelerationRate="fast"
+        scrollEventThrottle={16}
+        extraData={selectedIndex}
         contentContainerStyle={{
-          paddingHorizontal: (SCREEN_WIDTH - CARD_WIDTH) / 2 - CARD_SPACING / 2,
+          // Centrado exacto: con este padding, la tarjeta i queda en el centro de
+          // la pantalla justo con offset = i * SNAP_INTERVAL, que es exactamente
+          // lo que handleScroll redondea para comprometer el índice.
+          paddingHorizontal: (SCREEN_WIDTH - CARD_WIDTH) / 2,
         }}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
+        onScroll={handleScroll}
+        onScrollEndDrag={handleScroll}
+        onMomentumScrollEnd={handleScroll}
+        onScrollToIndexFailed={handleScrollToIndexFailed}
         keyExtractor={(item) => item.id}
         renderItem={({ item, index }) => {
           const isSelected = index === selectedIndex;
-          const slide = (
-            <Pressable
-              onPress={() => handleCardPress(index)}
-              style={
-                isSelected
-                  ? [styles.slide, styles.selected]
-                  : [styles.slide, styles.unselected, { marginRight: CARD_SPACING }]
-              }
+          // Siempre el mismo árbol (TintPill > Pressable): alternar la raíz hacía
+          // unmount/remount de la celda en medio del scroll y desincronizaba.
+          return (
+            <TintPill
+              color={PALETTE.categorias.finanzas}
+              alpha={isSelected ? 0.12 : 0}
+              radius={20}
+              style={{ marginRight: CARD_SPACING }}
             >
-              <CuentaCard data={item} />
-            </Pressable>
-          );
-          return isSelected ? (
-            <TintPill color={PALETTE.categorias.finanzas} radius={20} style={{ marginRight: CARD_SPACING }}>
-              {slide}
+              <Pressable
+                onPress={() => handleCardPress(index)}
+                style={
+                  isSelected
+                    ? [styles.slide, styles.selected]
+                    : [styles.slide, styles.unselected]
+                }
+              >
+                <CuentaCard data={item} />
+              </Pressable>
             </TintPill>
-          ) : slide;
+          );
         }}
       />
 
       <View style={styles.dotsRow}>
         {cuentas.map((cuenta, index) => (
-          <View
+          <Pressable
             key={cuenta.id}
-            style={[styles.dot, index === selectedIndex && styles.dotActive]}
-          />
+            accessibilityRole="button"
+            accessibilityLabel={`Ver cuenta ${index + 1} de ${cuentas.length}`}
+            hitSlop={6}
+            onPress={() => handleCardPress(index)}
+            style={({ pressed }) => [styles.dotBtn, pressed && pressedFeedback]}
+          >
+            <View style={[styles.dot, index === selectedIndex && styles.dotActive]} />
+          </Pressable>
         ))}
       </View>
     </View>
@@ -115,6 +172,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
+  },
+  dotBtn: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 16,
   },
   dot: {
     width: 8,

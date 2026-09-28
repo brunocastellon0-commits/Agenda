@@ -64,7 +64,7 @@ export default function AddHabitSheet({ visible, onClose, onSaved }: AddHabitShe
       return;
     }
     if (diasSeleccionados.length === 0) {
-      setError('Debes seleccionar al menos un día.');
+      setError('Tenés que seleccionar al menos un día.');
       return;
     }
 

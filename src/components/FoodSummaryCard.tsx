@@ -10,7 +10,7 @@ interface Props {
   comidasCount: number;
   ultimaComida: string | null;
   resumenNutricional: ResumenNutricional;
-  onPress: () => void;
+  onPress?: () => void;
 }
 
 function capitalizar(s: string) {
@@ -19,34 +19,52 @@ function capitalizar(s: string) {
 }
 
 export function FoodSummaryCard({ comidasCount, ultimaComida, resumenNutricional, onPress }: Props) {
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.card, pressed && pressedFeedback]}
-      onPress={onPress}
-    >
+  // Sin ítems estimados no hay dato calórico calculable → '—', nunca 0.
+  const hayEstimacion = resumenNutricional.itemsEstimados > 0;
+
+  const body = (
+    <>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <MaterialIcons name="restaurant" size={20} color={PALETTE.categorias.ocio} />
           <Text style={styles.title}>Alimentación</Text>
         </View>
-        <MaterialIcons name="chevron-right" size={20} color={PALETTE.outline} />
+        {onPress && <MaterialIcons name="chevron-right" size={20} color={PALETTE.outline} />}
       </View>
 
       <View style={styles.content}>
         {comidasCount === 0 ? (
-          <Text style={styles.countText}>Aún no registraste comidas hoy</Text>
+          <Text style={styles.countText}>Aún no registraste comidas este día</Text>
         ) : (
           <>
             <View style={styles.macroRow}>
-              <Text style={styles.kcalText}>{formatEstimado(resumenNutricional.kcal, ' kcal')}</Text>
+              <Text style={styles.kcalText}>
+                {hayEstimacion ? formatEstimado(resumenNutricional.kcal, ' kcal') : '—'}
+              </Text>
               <Text style={styles.macrosText}>
-                P: {formatEstimado(resumenNutricional.prot, 'g')} · C: {formatEstimado(resumenNutricional.carb, 'g')} · G: {formatEstimado(resumenNutricional.grasa, 'g')}
+                P: {hayEstimacion ? formatEstimado(resumenNutricional.prot, 'g') : '—'} · C: {hayEstimacion ? formatEstimado(resumenNutricional.carb, 'g') : '—'} · G: {hayEstimacion ? formatEstimado(resumenNutricional.grasa, 'g') : '—'}
               </Text>
             </View>
-            <Text style={styles.subText}>{comidasCount} comidas · Última: {capitalizar(ultimaComida || '')}</Text>
+            <Text style={styles.subText}>
+              {comidasCount} {comidasCount === 1 ? 'comida' : 'comidas'}
+              {ultimaComida ? ` · Última: ${capitalizar(ultimaComida)}` : ''}
+            </Text>
           </>
         )}
       </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.card}>{body}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.card, pressed && pressedFeedback]}
+      onPress={onPress}
+    >
+      {body}
     </Pressable>
   );
 }

@@ -246,7 +246,7 @@ export async function scheduleDailySummary() {
       identifier,
       content: {
         title: 'Cierre del día',
-        body: 'Revisa tu progreso de hoy',
+        body: 'Revisá tu progreso de hoy',
         data: { tipo: 'resumen' },
       },
       trigger: {
@@ -285,7 +285,7 @@ export async function scheduleRecordatorioComida(yaRegistrado: boolean) {
       identifier,
       content: {
         title: '¿Ya comiste?',
-        body: 'Registra tu almuerzo para mantener el seguimiento de tu alimentación.',
+        body: 'Registrá tu almuerzo para mantener el seguimiento de tu alimentación.',
         data: { tipo: 'comida' },
       },
       trigger: {

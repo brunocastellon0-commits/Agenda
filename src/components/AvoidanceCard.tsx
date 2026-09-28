@@ -10,7 +10,7 @@ interface AvoidanceCardProps {
 }
 
 export default function AvoidanceCard({ progreso, onPress, onRegister }: AvoidanceCardProps) {
-  const { conducta, rachaActual, ultimaOcurrencia, eventosPeriodo } = progreso;
+  const { conducta, rachaActual, mejorRacha, ultimaOcurrencia, eventosPeriodo } = progreso;
   
   const colorBase = PALETTE.categorias[conducta.categoria.toLowerCase() as keyof typeof PALETTE.categorias] || PALETTE.primary;
   
@@ -37,10 +37,13 @@ export default function AvoidanceCard({ progreso, onPress, onRegister }: Avoidan
       <View style={styles.metricRow}>
         {isLimit ? (
           <Text style={styles.metricText}>
-            {eventosPeriodo} / {conducta.objetivo} {conducta.frecuencia === 'semanal' ? 'esta semana' : conducta.frecuencia}
+            {eventosPeriodo} / {conducta.objetivo} {conducta.unidad}{' '}
+            {conducta.frecuencia === 'semanal' ? 'esta semana' : conducta.frecuencia === 'mensual' ? 'este mes' : 'hoy'}
           </Text>
         ) : (
-          <Text style={styles.metricText}>{rachaActual} días sin registro</Text>
+          <Text style={styles.metricText}>
+            {rachaActual} {rachaActual === 1 ? 'día' : 'días'} sin registro
+          </Text>
         )}
       </View>
 
@@ -57,9 +60,9 @@ export default function AvoidanceCard({ progreso, onPress, onRegister }: Avoidan
         <Text style={styles.footerText}>
           Último: {ultimaOcurrencia ? ultimaOcurrencia : 'Nunca'}
         </Text>
-        {isLimit && (
+        {!isLimit && (
           <Text style={styles.footerText}>
-            Racha: {rachaActual} d
+            Mejor: {mejorRacha} d
           </Text>
         )}
       </View>

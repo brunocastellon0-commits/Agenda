@@ -9,11 +9,12 @@ export interface Alimento {
   nombre: string;
   categoria: string;
   tags: string[];
-  kcal_100: number;
-  prot_100: number;
-  carb_100: number;
-  grasa_100: number;
-  fibra_100?: number;
+  // Anulables en SQLite (schema.ts) — NULL = "sin datos", nunca 0.
+  kcal_100: number | null;
+  prot_100: number | null;
+  carb_100: number | null;
+  grasa_100: number | null;
+  fibra_100?: number | null;
   unidad_base: UnidadMedida;
   origen: 'sistema' | 'usuario';
   activo: number;
@@ -26,12 +27,13 @@ export interface RegistroComidaItem {
   registro_id?: number;
   alimento_id: number;
   alimento?: Alimento;
-  cantidad: number;
-  unidad: UnidadMedida;
-  kcal_est: number;
-  prot_est: number;
-  carb_est: number;
-  grasa_est: number;
+  // Cantidad opcional: null = "sin cantidad" (el alimento queda registrado y visible).
+  cantidad: number | null;
+  unidad: UnidadMedida | null;
+  kcal_est: number | null;
+  prot_est: number | null;
+  carb_est: number | null;
+  grasa_est: number | null;
 }
 
 export interface RegistroComida {
@@ -70,6 +72,15 @@ export const asegurarAlimentosIniciales = async (): Promise<void> => {
         );
       }
     }
+
+    // Saneo de filas legacy: solo se ocultan del buscador alimentos de origen
+    // 'sistema' cuyo kcal_100 quedó NULL (semilla anterior que ya no existe).
+    // NO borra filas ni toca comida_registro_item → el histórico se conserva
+    // íntegro (los JOIN por alimento_id siguen resolviendo).
+    await txn.runAsync(
+      `UPDATE comida_alimento SET activo = 0
+       WHERE origen = 'sistema' AND activo = 1 AND kcal_100 IS NULL`
+    );
   });
 };
 
@@ -103,7 +114,7 @@ export const getRegistrosDia = async (fecha: string): Promise<RegistroComida[]> 
 
   for (const reg of registrosDb) {
     const itemsDb = await db.getAllAsync<any>(
-      `SELECT i.*, a.nombre, a.categoria, a.tags, a.unidad_base
+      `SELECT i.*, a.nombre, a.categoria, a.tags, a.unidad_base, a.kcal_100, a.prot_100, a.carb_100, a.grasa_100, a.fibra_100, a.origen, a.activo, a.es_receta
        FROM comida_registro_item i
        JOIN comida_alimento a ON i.alimento_id = a.id
        WHERE i.registro_id = ?`,
@@ -120,18 +131,27 @@ export const getRegistrosDia = async (fecha: string): Promise<RegistroComida[]> 
         id: i.id,
         registro_id: i.registro_id,
         alimento_id: i.alimento_id,
-        cantidad: i.cantidad || 1,
-        unidad: i.unidad || i.unidad_base || 'unidad',
-        kcal_est: i.kcal_est || 0,
-        prot_est: i.prot_est || 0,
-        carb_est: i.carb_est || 0,
-        grasa_est: i.grasa_est || 0,
+        // NULL = sin cantidad / sin estimación (nunca se convierte en 0 ni en 1)
+        cantidad: i.cantidad ?? null,
+        unidad: i.unidad ?? null,
+        kcal_est: i.kcal_est ?? null,
+        prot_est: i.prot_est ?? null,
+        carb_est: i.carb_est ?? null,
+        grasa_est: i.grasa_est ?? null,
         alimento: {
           id: i.alimento_id,
           nombre: i.nombre,
           categoria: i.categoria,
           tags: JSON.parse(i.tags || '[]'),
-          kcal_100: 0, prot_100: 0, carb_100: 0, grasa_100: 0, unidad_base: i.unidad_base, origen: 'sistema', activo: 1, es_receta: 0
+          kcal_100: i.kcal_100 ?? null,
+          prot_100: i.prot_100 ?? null,
+          carb_100: i.carb_100 ?? null,
+          grasa_100: i.grasa_100 ?? null,
+          fibra_100: i.fibra_100 ?? null,
+          unidad_base: i.unidad_base ?? 'g',
+          origen: i.origen ?? 'sistema',
+          activo: i.activo ?? 1,
+          es_receta: i.es_receta ?? 0
         }
       }))
     });
@@ -226,14 +246,14 @@ export const analizarRango = async (inicio: string, fin: string): Promise<Analis
   const tendencias: string[] = [];
   if (registros.length === 0) return { calidadGeneral: 0, desglose: { proteina: 0, vegetales: 0, frutas: 0, ultraprocesados: 0 }, tendencias: [] };
 
-  if (proteinaScore > 0.6) tendencias.push("Has incluido proteína en la mayoría de tus comidas.");
+  if (proteinaScore > 0.6) tendencias.push("Incluiste proteína en la mayoría de tus comidas.");
   else if (proteinaScore < 0.3) tendencias.push("Tus comidas han sido bajas en proteína en general.");
   if (vegetalesScore > 0.5) tendencias.push("¡Buena presencia de vegetales en tus platos!");
   else if (vegetalesScore < 0.2) tendencias.push("Podrías intentar agregar vegetales a más comidas.");
-  if (ultraScore > 0.4) tendencias.push("Has registrado varios alimentos ultraprocesados.");
+  if (ultraScore > 0.4) tendencias.push("Registraste varios alimentos ultraprocesados.");
 
   const cenasTarde = registros.filter(r => r.tipo === 'cena' && r.hora >= '21:30').length;
-  if (cenasTarde > 2) tendencias.push(`Has cenado después de las 21:30 en ${cenasTarde} ocasiones.`);
+  if (cenasTarde > 2) tendencias.push(`Cenaste después de las 21:30 en ${cenasTarde} ocasiones.`);
 
   return {
     calidadGeneral: Math.round(calidad * 10) / 10,
@@ -247,22 +267,44 @@ export interface ResumenNutricional {
   prot: number;
   carb: number;
   grasa: number;
+  /** Cantidad de comidas registradas en la fecha (0 = sin datos). */
+  comidas: number;
+  /** Ítems que sí tienen estimación calórica (0 = nada calculable). */
+  itemsEstimados: number;
 }
+
+/** Estado inicial "sin datos" — no confundir con 0 kcal. */
+export const RESUMEN_VACIO: ResumenNutricional = {
+  kcal: 0, prot: 0, carb: 0, grasa: 0, comidas: 0, itemsEstimados: 0
+};
 
 export const getResumenDia = async (fecha: string): Promise<ResumenNutricional> => {
   const db = await getDatabase();
-  const rows = await db.getAllAsync<{ kcal_est: number, prot_est: number, carb_est: number, grasa_est: number }>(
+  const rows = await db.getAllAsync<{ kcal_est: number | null, prot_est: number | null, carb_est: number | null, grasa_est: number | null }>(
     `SELECT i.kcal_est, i.prot_est, i.carb_est, i.grasa_est
      FROM comida_registro_item i
      JOIN comida_registro r ON i.registro_id = r.id
      WHERE r.fecha = ?`,
     [fecha]
   );
-  
-  return rows.reduce((acc, curr) => ({
-    kcal: acc.kcal + (curr.kcal_est || 0),
-    prot: acc.prot + (curr.prot_est || 0),
-    carb: acc.carb + (curr.carb_est || 0),
-    grasa: acc.grasa + (curr.grasa_est || 0)
+
+  const conteo = await db.getFirstAsync<{ total: number }>(
+    `SELECT COUNT(*) AS total FROM comida_registro WHERE fecha = ?`,
+    [fecha]
+  );
+
+  // Los NULL se suman como aporte cero (no hay dato que sumar), pero se cuentan
+  // aparte en `itemsEstimados` para poder distinguir "0 kcal" de "sin datos".
+  const acumulado = rows.reduce((acc, curr) => ({
+    kcal: acc.kcal + (curr.kcal_est ?? 0),
+    prot: acc.prot + (curr.prot_est ?? 0),
+    carb: acc.carb + (curr.carb_est ?? 0),
+    grasa: acc.grasa + (curr.grasa_est ?? 0)
   }), { kcal: 0, prot: 0, carb: 0, grasa: 0 });
+
+  return {
+    ...acumulado,
+    comidas: conteo?.total ?? 0,
+    itemsEstimados: rows.filter(r => r.kcal_est !== null && r.kcal_est !== undefined).length
+  };
 };

@@ -33,7 +33,8 @@ export interface HabitoProgreso {
   completadosSemana: number;
   rachaActual: number;
   mejorRacha: number;
-  historialReciente: { fecha: string; completado: boolean }[]; // Últimos 7 días
+  /** Semana calendario lunes→domingo (misma fuente que `completadosSemana`). */
+  historialReciente: { fecha: string; completado: boolean; futuro: boolean }[];
   completadoHoy: boolean;
   completadoAyer: boolean;
 }
@@ -78,10 +79,10 @@ export const getHabitosActivos = async (): Promise<HabitoProgreso[]> => {
   const hoyIso = toISO(hoy);
   const ayerIso = toISO(ayer);
 
-  // 7 días atrás para historial
+  // Semana calendario (lunes → domingo): ÚNICA fuente para contador y celdas.
   const historialDias: string[] = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - i);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + i);
     historialDias.push(toISO(d));
   }
 
@@ -111,40 +112,37 @@ export const getHabitosActivos = async (): Promise<HabitoProgreso[]> => {
       frecuencia = 'diario';
     }
 
-    // 2. Progreso de la semana
+    // 2. UNA sola consulta por hábito: alimenta el contador Y las celdas.
+    //    Rango = semana calendario (lunes→domingo), ampliado a 'ayer' solo para
+    //    poder resolver `completadoAyer` cuando hoy es lunes.
+    const rangoInicio = ayerIso < inicioSemanaIso ? ayerIso : inicioSemanaIso;
     const actsSemana = await db.getAllAsync<{ fecha: string; completado: number; eliminada: number }>(
       `SELECT fecha, completado, eliminada FROM actividad 
        WHERE regla_recurrencia_id = ? AND fecha BETWEEN ? AND ?`,
-      [hab.regla_recurrencia_id, inicioSemanaIso, finSemanaIso]
+      [hab.regla_recurrencia_id, rangoInicio, finSemanaIso]
     );
 
-    const completadosSemana = actsSemana.filter(a => a.completado === 1 && (a.eliminada === 0 || a.eliminada === null)).length;
-
-    // 3. Historial reciente
-    const actsHistorial = await db.getAllAsync<{ fecha: string; completado: number; eliminada: number }>(
-      `SELECT fecha, completado, eliminada FROM actividad 
-       WHERE regla_recurrencia_id = ? AND fecha >= ? AND fecha <= ?`,
-      [hab.regla_recurrencia_id, historialDias[0], hoyIso]
-    );
-
-    const mapActs = new Map();
-    actsHistorial.forEach(a => {
+    const mapActs = new Map<string, boolean>();
+    actsSemana.forEach(a => {
       if (a.eliminada === 0 || a.eliminada === null) {
         mapActs.set(a.fecha, a.completado === 1);
       }
     });
 
-    const historialReciente = historialDias.map(fecha => {
-      // Si no existe instancia, lo contamos como no completado
-      // Pero para la UI, podríamos diferenciar "no había" vs "falló". Lo mantendremos simple por ahora.
-      return {
-        fecha,
-        completado: mapActs.get(fecha) || false
-      };
-    });
+    // 3. Celdas de la semana (lunes → domingo, en ese orden).
+    const historialReciente = historialDias.map(fecha => ({
+      fecha,
+      completado: mapActs.get(fecha) === true,
+      futuro: fecha > hoyIso
+    }));
 
-    const completadoHoy = mapActs.get(hoyIso) || false;
-    const completadoAyer = mapActs.get(ayerIso) || false;
+    // Contador derivado de las MISMAS celdas → nunca puede divergir.
+    // Los días futuros existen en la semana pero jamás se contabilizan.
+    const completadosSemana = historialReciente
+      .filter(d => !d.futuro && d.completado).length;
+
+    const completadoHoy = mapActs.get(hoyIso) === true;
+    const completadoAyer = mapActs.get(ayerIso) === true;
 
     // 4. Calcular Racha Histórica
     const allActs = await db.getAllAsync<{ fecha: string; completado: number; eliminada: number }>(

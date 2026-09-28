@@ -35,7 +35,7 @@ export function MiDiaWidget({ rachas = [], mensaje = 'Tu día sigue en marcha.' 
         rachas.map((r, i) => (
           <FlexWidget key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
             <TextWidget text="◉" style={{ fontSize: 14, color: '#16876A', marginRight: 8 }} />
-            <TextWidget text={`${r.dias} días`} style={{ fontSize: 14, fontWeight: 'bold', color: '#16876A', marginRight: 8, width: 55 }} />
+            <TextWidget text={`${r.dias} ${r.dias === 1 ? 'día' : 'días'}`} style={{ fontSize: 14, fontWeight: 'bold', color: '#16876A', marginRight: 8, width: 55 }} />
             <TextWidget text={r.nombre} style={{ fontSize: 14, color: '#1E293B' }} />
           </FlexWidget>
         ))

@@ -9,4 +9,5 @@ export type RootStackParamList = {
   Metricas: TabAnimParams | undefined;
   Comida: TabAnimParams | undefined;
   Estado: undefined;
+  Control: undefined;
 };

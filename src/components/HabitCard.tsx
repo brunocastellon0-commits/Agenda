@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme';
@@ -8,13 +9,20 @@ interface HabitCardProps {
   onPress?: () => void;
 }
 
+// getDay(): 0=Domingo … 6=Sábado
+const DIAS_CORTOS = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+
+function diaDeFecha(fecha: string): string {
+  const d = new Date(`${fecha}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
+  return DIAS_CORTOS[d.getDay()];
+}
+
 export default function HabitCard({ habit, onPress }: HabitCardProps) {
   const { detalle, rachaActual, mejorRacha, completadosSemana, objetivoSemanal, historialReciente } = habit;
   
-  // Semana: L M X J V S D
-  const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-  // Historial viene de hoy hacia atrás, lo invertimos para mostrar en orden cronológico (lun a dom o últimos 7)
-  const orderedHistory = [...historialReciente].reverse();
+  // Semana calendario L M X J V S D — el repo devuelve lun→dom en orden.
+  const orderedHistory = historialReciente;
 
   const color = detalle.tipo_actividad_color || PALETTE.primary;
 
@@ -26,7 +34,7 @@ export default function HabitCard({ habit, onPress }: HabitCardProps) {
       <View style={styles.header}>
         <View style={styles.titleRow}>
           {detalle.tipo_actividad_emoji && (
-            <Text style={styles.emoji}>{detalle.tipo_actividad_emoji}</Text>
+            <MaterialIcons name={(detalle.tipo_actividad_emoji as any) || 'folder'} size={18} color={PALETTE.primary} />
           )}
           <Text style={styles.title}>{detalle.titulo}</Text>
         </View>
@@ -43,13 +51,14 @@ export default function HabitCard({ habit, onPress }: HabitCardProps) {
 
       <View style={styles.daysRow}>
         {orderedHistory.map((day, i) => (
-          <View key={i} style={styles.dayContainer}>
-            <Text style={styles.dayLabel}>{days[i]}</Text>
+          <View key={day.fecha || i} style={styles.dayContainer}>
+            <Text style={styles.dayLabel}>{diaDeFecha(day.fecha)}</Text>
             <View style={[
               styles.dayCircle,
-              day.completado ? { backgroundColor: color, borderColor: color } : {}
+              day.completado && !day.futuro ? { backgroundColor: color, borderColor: color } : {},
+              day.futuro && styles.dayCircleFuturo
             ]}>
-              {day.completado && <Text style={styles.check}>✓</Text>}
+              {day.completado && !day.futuro && <Text style={styles.check}>✓</Text>}
             </View>
           </View>
         ))}
@@ -119,6 +128,10 @@ const styles = StyleSheet.create({
     borderColor: PALETTE.outline,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  dayCircleFuturo: {
+    opacity: 0.35,
+    borderStyle: 'dashed',
   },
   check: {
     color: PALETTE.surfaceContainerLowest,

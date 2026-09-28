@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, Pressable, Modal, TouchableWithoutFeedback, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, Modal, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme';
 import { ConductaEvitar, registrarEventoConducta, getConductasActivas } from '../repositories/conductaRepo';
 import { toISODate } from '../utils/semana';
@@ -95,16 +95,13 @@ export default function AddConductaSheet({ visible, onClose, conducta, onSaved }
       animationType="slide"
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View style={styles.overlay} />
-      </TouchableWithoutFeedback>
-      
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardOverlay}
-        pointerEvents="box-none"
-      >
-        <View style={[styles.sheet, { paddingBottom: Math.max(24, insets.bottom + 12) }]}>
+      <View style={styles.overlay}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={[styles.sheet, { paddingBottom: Math.max(24, insets.bottom + 12) }]}
+        >
           {feedback ? (
             // ESTADO DE FEEDBACK (Solo para evitación total)
             <View style={styles.feedbackContainer}>
@@ -190,8 +187,8 @@ export default function AddConductaSheet({ visible, onClose, conducta, onSaved }
               </View>
             </ScrollView>
           )}
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -200,10 +197,10 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(19,26,24,0.4)',
-  },
-  keyboardOverlay: {
-    flex: 1,
     justifyContent: 'flex-end',
+  },
+  backdrop: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
   },
   sheet: {
     backgroundColor: PALETTE.surfaceContainerLowest,
@@ -271,7 +268,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   saveText: {
-    color: '#FFF',
+    color: PALETTE.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

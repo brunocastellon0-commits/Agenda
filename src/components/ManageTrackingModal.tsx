@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -93,7 +94,7 @@ export default function ManageTrackingModal({ visible, onClose, onChanged }: Man
           
           <View style={styles.header}>
             <Text style={styles.title}>Gestionar Seguimientos</Text>
-            <Text style={styles.subtitle}>Aquí puedes dejar de seguir hábitos o eliminar conductas que ya no quieras monitorear.</Text>
+            <Text style={styles.subtitle}>Acá podés dejar de seguir hábitos o eliminar conductas que ya no quieras monitorear.</Text>
           </View>
 
           {loading ? (
@@ -109,14 +110,14 @@ export default function ManageTrackingModal({ visible, onClose, onChanged }: Man
                 </Pressable>
               </View>
               {habitos.length === 0 ? (
-                <Text style={styles.emptyText}>No sigues ningún hábito actualmente.</Text>
+                <Text style={styles.emptyText}>No seguís ningún hábito actualmente.</Text>
               ) : (
                 habitos.map((h) => (
                   <View key={h.detalle.id} style={styles.item}>
                     <View style={styles.itemRow}>
                       <View style={[styles.iconBox, { backgroundColor: tint(h.detalle.tipo_actividad_color || PALETTE.primary, 0.12) }]}>
                         {h.detalle.tipo_actividad_emoji ? (
-                          <Text style={{ fontSize: 16 }}>{h.detalle.tipo_actividad_emoji}</Text>
+                          <MaterialIcons name={(h.detalle.tipo_actividad_emoji as any) || 'folder'} size={16} color={PALETTE.primary} />
                         ) : (
                           <View style={[styles.dot, { backgroundColor: h.detalle.tipo_actividad_color }]} />
                         )}

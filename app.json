@@ -14,7 +14,7 @@
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/relok.png"
       },
-      "predictiveBackGestureEnabled": true,
+      "predictiveBackGestureEnabled": false,
       "package": "com.brunocastellon0.agendaapp"
     },
     "web": {

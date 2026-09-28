@@ -17,7 +17,8 @@ import {
   eliminarRegistroComida,
   asegurarAlimentosIniciales,
   getResumenDia,
-  ResumenNutricional
+  ResumenNutricional,
+  RESUMEN_VACIO
 } from '../repositories/comidaRepo';
 
 import { scheduleRecordatorioComida } from '../services/notificaciones';
@@ -35,7 +36,7 @@ export default function ComidaScreen({ navigation }: Props) {
   
   const [registros, setRegistros] = useState<RegistroComida[]>([]);
   const [analisis, setAnalisis] = useState<AnalisisAlimentacion | null>(null);
-  const [resumenNutricional, setResumenNutricional] = useState<ResumenNutricional>({ kcal: 0, prot: 0, carb: 0, grasa: 0 });
+  const [resumenNutricional, setResumenNutricional] = useState<ResumenNutricional>(RESUMEN_VACIO);
   
   const [showAddSheet, setShowAddSheet] = useState(false);
 
@@ -126,7 +127,8 @@ export default function ComidaScreen({ navigation }: Props) {
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         
-        {loading ? (
+        {/* Spinner solo en la primera carga: si ya hay datos se conservan en pantalla */}
+        {loading && registros.length === 0 ? (
           <ActivityIndicator size="large" color={PALETTE.primary} style={styles.loader} />
         ) : (
           <>
@@ -136,7 +138,6 @@ export default function ComidaScreen({ navigation }: Props) {
                 comidasCount={registros.length}
                 ultimaComida={registros.length > 0 ? `${registros[registros.length - 1].tipo} · ${registros[registros.length - 1].hora}` : null}
                 resumenNutricional={resumenNutricional}
-                onPress={() => {}}
               />
             </View>
 
@@ -146,12 +147,14 @@ export default function ComidaScreen({ navigation }: Props) {
             )}
 
             {/* CRONOLOGÍA */}
-            <MealTimeline registros={registros} onDelete={handleDelete} />
+            {registros.length > 0 && (
+              <MealTimeline registros={registros} onDelete={handleDelete} />
+            )}
 
             {registros.length === 0 && (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyIcon}>🍽️</Text>
-                <Text style={styles.emptyDesc}>Todavía no has registrado comidas para este día.</Text>
+                <Text style={styles.emptyDesc}>Todavía no registraste comidas para este día.</Text>
               </View>
             )}
 
@@ -239,7 +242,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   addButtonText: {
-    color: '#FFF',
+    color: PALETTE.onAccent,
     fontSize: 16,
     fontWeight: '600',
   },

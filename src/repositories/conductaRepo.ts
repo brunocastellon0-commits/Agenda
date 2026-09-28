@@ -25,25 +25,53 @@ export interface ConductaProgreso {
   eventosPeriodo: number; // esta semana o este mes según frecuencia
 }
 
-export const asegurarConductasIniciales = async (): Promise<void> => {
+export interface NuevaConducta {
+  nombre: string;
+  descripcion?: string | null;
+  /** Clave de `PALETTE.categorias` (AvoidanceCard resuelve el color con toLowerCase). */
+  categoria: string;
+  modalidad: 'evitacion_total' | 'limite';
+  frecuencia?: 'diario' | 'semanal' | 'mensual';
+  objetivo?: number;
+  unidad?: string;
+}
+
+/**
+ * Alta de una conducta creada por el usuario.
+ * No existen conductas por defecto: la única fuente de la pantalla es lo que
+ * inserte acá (`origen = 'propia'`). La semilla de ejemplo fue eliminada.
+ */
+export const crearConducta = async (datos: NuevaConducta): Promise<number> => {
   const db = await getDatabase();
-  const countRes = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM conducta_evitar');
-  
-  if (countRes && countRes.count === 0) {
-    const hoyIso = toISODate(new Date());
-    await db.runAsync(
-      `INSERT INTO conducta_evitar (nombre, descripcion, categoria, modalidad, frecuencia, objetivo, unidad, activa, fecha_creacion, origen) VALUES
-       ('No fumar', 'Evitar cigarrillos', 'Salud', 'evitacion_total', 'diario', 0, 'ocurrencias', 1, ?, 'ejemplo'),
-       ('Comida rápida', 'Reducir el consumo de comida rápida', 'Alimentación', 'limite', 'semanal', 2, 'comidas', 1, ?, 'ejemplo'),
-       ('Redes sociales', 'Limitar el tiempo en Instagram/TikTok', 'Tecnología', 'limite', 'diario', 90, 'minutos', 1, ?, 'ejemplo')`,
-      [hoyIso, hoyIso, hoyIso]
-    );
-  }
+  const esLimite = datos.modalidad === 'limite';
+
+  const result = await db.runAsync(
+    `INSERT INTO conducta_evitar
+       (nombre, descripcion, categoria, modalidad, frecuencia, objetivo, unidad, activa, fecha_creacion, recordatorio, origen)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, 0, 'propia')`,
+    [
+      datos.nombre.trim(),
+      datos.descripcion?.trim() || null,
+      datos.categoria,
+      datos.modalidad,
+      esLimite ? datos.frecuencia ?? 'diario' : 'diario',
+      esLimite ? datos.objetivo ?? 1 : 0,
+      esLimite ? datos.unidad ?? 'comidas' : 'ocurrencias',
+      toISODate(new Date()),
+    ]
+  );
+
+  return result.lastInsertRowId;
 };
 
 export const getConductasActivas = async (referencia: Date = new Date()): Promise<ConductaProgreso[]> => {
   const db = await getDatabase();
-  const conductas = await db.getAllAsync<ConductaEvitar>('SELECT * FROM conducta_evitar WHERE activa = 1');
+  // Solo conductas creadas por el usuario. Las filas de ejemplo que aún existan
+  // en SQLite (origen = 'ejemplo') quedan intactas pero dejan de renderizarse.
+  const conductas = await db.getAllAsync<ConductaEvitar>(
+    'SELECT * FROM conducta_evitar WHERE activa = 1 AND origen = ?',
+    ['propia']
+  );
   const progresos: ConductaProgreso[] = [];
   
   for (const c of conductas) {
@@ -96,6 +124,28 @@ export const getConductasActivas = async (referencia: Date = new Date()): Promis
   }
   
   return progresos;
+};
+
+/**
+ * Construye la frase de racha de una conducta derivándola de su `nombre`,
+ * respetando su semántica y sin migraciones:
+ * - `evitacion_total` → 'Llevás 4 días sin fumar' (se quita la partícula inicial
+ *   'No ' del nombre para no escribir 'sin no fumar').
+ * - `limite` → 'Llevás 2/3 comidas esta semana'.
+ */
+export const fraseRachaEvitacion = (p: ConductaProgreso): string => {
+  const c = p.conducta;
+
+  if (c.modalidad === 'evitacion_total') {
+    const accion = c.nombre.replace(/^\s*no\s+/i, '');
+    const dias = p.rachaActual;
+    return `Llevás ${dias} ${dias === 1 ? 'día' : 'días'} sin ${accion}.`;
+  }
+
+  const periodo = c.frecuencia === 'semanal' ? 'esta semana'
+    : c.frecuencia === 'mensual' ? 'este mes'
+    : 'hoy';
+  return `Llevás ${p.eventosPeriodo}/${c.objetivo} ${c.unidad} ${periodo}.`;
 };
 
 export const registrarEventoConducta = async (

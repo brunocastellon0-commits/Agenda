@@ -329,7 +329,7 @@ export async function generarInsights(periodo: PeriodoMetricas): Promise<Insight
   if (actual.cumplimientoPct != null && actual.totalPlanificadas > 0) {
     insights.push({
       tipo: 'info',
-      mensaje: `${etiquetaPeriodo} completaste ${actual.completadas} de ${actual.totalPlanificadas} actividades planificadas (${actual.cumplimientoPct}%).`,
+      mensaje: `${etiquetaPeriodo} completaste ${actual.completadas} de ${actual.totalPlanificadas} actividad${actual.totalPlanificadas === 1 ? '' : 'es'} planificad${actual.totalPlanificadas === 1 ? 'a' : 'as'} (${actual.cumplimientoPct}%).`,
     });
   }
 

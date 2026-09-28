@@ -7,6 +7,7 @@ import ActividadesScreen from '../screens/Actividades';
 import MetricasScreen from '../screens/Metricas';
 import ComidaScreen from '../screens/Comida';
 import EstadoScreen from '../screens/Estado';
+import ControlScreen from '../screens/Control';
 import { RootStackParamList } from './types';
 import { PALETTE } from '../theme/theme';
 import { SER_ESPEC_TRANSICION, interpoladorTab } from './transition';
@@ -19,7 +20,10 @@ export default function AppNavigator() {
       <Stack.Navigator
         initialRouteName="Home"
         screenOptions={{
-          gestureEnabled: true,
+          // Sin gestos horizontales de pila: el único camino entre módulos es el
+          // Bottom Nav. El swipe-back capturaba el gesto horizontal de toda la
+          // pantalla y le robaba el drag al carrusel de cuentas de Billetera.
+          gestureEnabled: false,
           transitionSpec: SER_ESPEC_TRANSICION,
           cardStyle: { backgroundColor: PALETTE.surface },
           headerStyle: { backgroundColor: PALETTE.surface },

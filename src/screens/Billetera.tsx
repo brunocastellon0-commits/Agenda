@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, StatusBar, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, StatusBar, ScrollView, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import { RootStackParamList } from '../navigation/types';
@@ -357,7 +358,7 @@ export default function BilleteraScreen({ navigation }: Props) {
 
   if (loadingInicial) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor={PALETTE.surface} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={PALETTE.ink} />
@@ -369,7 +370,7 @@ export default function BilleteraScreen({ navigation }: Props) {
   const cargandoDetalle = cargandoDetalleId === cuentaActiva?.id;
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={PALETTE.surface} />
 
       <ScrollView
@@ -501,7 +502,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 100,
+    paddingBottom: 110,
     paddingTop: 16,
     gap: 16,
   },

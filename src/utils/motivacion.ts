@@ -12,19 +12,19 @@ const PHRASES: Phrase[] = [
   // Ejercicio / Disciplina
   {
     id: 'ex_1',
-    text: 'No estás intentando demostrar que puedes hacerlo. Estás demostrando que puedes repetirlo.',
+    text: 'No estás intentando demostrar que podés hacerlo. Estás demostrando que podés repetirlo.',
     category: 'exercise',
     tone: 'disciplined'
   },
   {
     id: 'ex_2',
-    text: 'Hoy no tienes que ser mejor que nadie. Solo tienes que cumplir lo que te prometiste.',
+    text: 'Hoy no tenés que ser mejor que nadie. Solo tenés que cumplir lo que te prometiste.',
     category: 'exercise',
     tone: 'realistic'
   },
   {
     id: 'ex_3',
-    text: 'No necesitas tener ganas. Solo necesitas empezar.',
+    text: 'No necesitás tener ganas. Solo necesitás empezar.',
     category: 'exercise',
     tone: 'disciplined'
   },
@@ -69,7 +69,7 @@ const PHRASES: Phrase[] = [
   },
   {
     id: 'fa_2',
-    text: 'No necesitas empezar de cero. Solo necesitas continuar desde aquí.',
+    text: 'No necesitás empezar de cero. Solo necesitás continuar desde aquí.',
     category: 'failure',
     tone: 'encouraging'
   },

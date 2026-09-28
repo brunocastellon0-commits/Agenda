@@ -84,8 +84,8 @@ export function ActivityTimeline({
 
         <Text style={styles.emptySubtitle}>
           {areaFiltrada
-            ? 'No tienes tareas programadas para esta área hoy.'
-            : 'No tienes actividades pendientes para este momento.'}
+            ? 'No tenés tareas programadas para esta área hoy.'
+            : 'No tenés actividades pendientes para este momento.'}
         </Text>
 
         <Pressable

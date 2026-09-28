@@ -132,7 +132,7 @@ export default function EstadoScreen({ navigation }: Props) {
           <Text style={styles.sectionTitle}>EVOLUCIÓN (PESO)</Text>
           <View style={styles.card}>
             {historial.filter(h => h.peso != null).length < 2 ? (
-              <Text style={styles.emptyText}>Historial insuficiente para mostrar evolución. Registra al menos 2 mediciones.</Text>
+              <Text style={styles.emptyText}>Historial insuficiente para mostrar evolución. Registrá al menos 2 mediciones.</Text>
             ) : (
               <SimpleLineChart 
                 data={[...historial].reverse().filter(h => h.peso != null).map(h => h.peso!)} 

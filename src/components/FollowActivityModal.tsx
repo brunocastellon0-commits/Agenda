@@ -1,3 +1,4 @@
+import { MaterialIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -71,7 +72,7 @@ export default function FollowActivityModal({ visible, onClose, onFollow }: Foll
                   <View style={styles.itemRow}>
                     <View style={[styles.iconBox, { backgroundColor: tint(act.tipo_color || PALETTE.primary, 0.12) }]}>
                       {act.tipo_emoji ? (
-                        <Text style={{ fontSize: 16 }}>{act.tipo_emoji}</Text>
+                        <MaterialIcons name={(act.tipo_emoji as any) || 'folder'} size={16} color={act.tipo_color} />
                       ) : (
                         <View style={[styles.dot, { backgroundColor: act.tipo_color }]} />
                       )}

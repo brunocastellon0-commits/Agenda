@@ -1,81 +1,92 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme';
-import { RegistroComida } from '../repositories/comidaRepo';
+import { PALETTE, RADIUS, SHADOW, pressedFeedback } from '../theme/theme';
+import { RegistroComida, TipoComida } from '../repositories/comidaRepo';
+import { formatCantidadUnidad, formatEstimado } from '../utils/nutricion';
 
 interface Props {
   registros: RegistroComida[];
   onDelete?: (id: number) => void;
 }
 
-export default function MealTimeline({ registros, onDelete }: Props) {
-  
-  if (registros.length === 0) return null;
+const ORDEN_TIPOS: { id: TipoComida; label: string }[] = [
+  { id: 'desayuno', label: 'Desayuno' },
+  { id: 'almuerzo', label: 'Almuerzo' },
+  { id: 'merienda', label: 'Merienda' },
+  { id: 'cena', label: 'Cena' },
+  { id: 'otro', label: 'Snack' },
+];
 
+export default function MealTimeline({ registros, onDelete }: Props) {
   const colorForTipo = (tipo: string) => {
-    switch(tipo) {
-      case 'desayuno': return PALETTE.categorias.importante; // Ambar
-      case 'almuerzo': return PALETTE.categorias.finanzas; // Esmeralda
-      case 'merienda': return PALETTE.categorias.ocio; // Coral
-      case 'cena': return PALETTE.categorias.objetivos; // Indigo
+    switch (tipo) {
+      case 'desayuno': return PALETTE.categorias.importante;
+      case 'almuerzo': return PALETTE.categorias.finanzas;
+      case 'merienda': return PALETTE.categorias.ocio;
+      case 'cena': return PALETTE.categorias.objetivos;
       default: return PALETTE.outline;
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>HORARIO DE HOY</Text>
-      
-      <View style={styles.timeline}>
-        {registros.map((reg, index) => {
-          const color = colorForTipo(reg.tipo);
-          return (
-            <View key={reg.id} style={styles.itemRow}>
-              
-              <View style={styles.timeColumn}>
-                <Text style={styles.timeText}>{reg.hora}</Text>
-              </View>
+      <Text style={styles.headerTitle}>COMIDAS DEL DÍA</Text>
 
-              <View style={styles.lineColumn}>
-                <View style={[styles.dot, { backgroundColor: color }]} />
-                {index < registros.length - 1 && <View style={styles.line} />}
-              </View>
+      {ORDEN_TIPOS.map(({ id, label }) => {
+        const color = colorForTipo(id);
+        const delTipo = registros.filter(r => r.tipo === id);
 
-              <View style={styles.contentColumn}>
-                <View style={styles.card}>
+        return (
+          <View key={id} style={styles.seccion}>
+            <View style={styles.seccionHeader}>
+              <View style={[styles.seccionDot, { backgroundColor: color }]} />
+              <Text style={styles.seccionTitulo}>{label}</Text>
+              <View style={styles.seccionLinea} />
+            </View>
+
+            {delTipo.length === 0 ? (
+              <Text style={styles.seccionVacia}>—</Text>
+            ) : (
+              delTipo.map(reg => (
+                <View key={reg.id} style={styles.card}>
                   <View style={styles.cardHeader}>
-                    <Text style={[styles.tipoLabel, { color }]}>
-                      {reg.tipo.toUpperCase()}
-                    </Text>
+                    <Text style={[styles.tipoLabel, { color }]}>{reg.hora}</Text>
                     {onDelete && (
-                      <Pressable 
+                      <Pressable
                         onPress={() => onDelete(reg.id!)}
-                        style={({pressed}) => [pressed && {opacity: 0.5}]}
+                        style={({ pressed }) => [styles.deleteBtn, pressed && pressedFeedback]}
+                        hitSlop={8}
                       >
                         <Text style={styles.deleteText}>✕</Text>
                       </Pressable>
                     )}
                   </View>
-                  
-                  <Text style={styles.itemsText}>
-                    {reg.items.map(i => {
-                      const nombre = i.alimento?.nombre || 'Alimento';
-                      const cant = i.cantidad || 1;
-                      const unit = i.unidad !== 'unidad' && i.unidad !== 'porcion' ? ` ${i.unidad}` : '';
-                      return `${cant}${unit} ${nombre}`;
-                    }).join(' · ')}
-                  </Text>
+
+                  {reg.items.map((item, idx) => {
+                    const nombre = item.alimento?.nombre || 'Alimento';
+                    const cantidad = formatCantidadUnidad(item.cantidad, item.unidad);
+                    const kcal = formatEstimado(item.kcal_est, ' kcal');
+                    const meta = cantidad
+                      ? `${cantidad} · ${kcal}`
+                      : (item.kcal_est == null ? 'sin cantidad' : kcal);
+                    return (
+                      <View key={item.id ?? idx} style={styles.itemRow}>
+                        <Text style={styles.bullet}>•</Text>
+                        <Text style={styles.itemNombre}>{nombre}</Text>
+                        <Text style={styles.itemMeta}>{meta}</Text>
+                      </View>
+                    );
+                  })}
 
                   {reg.nota && reg.nota.trim().length > 0 && (
                     <Text style={styles.notaText}>{reg.nota}</Text>
                   )}
                 </View>
-              </View>
-              
-            </View>
-          );
-        })}
-      </View>
+              ))
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -92,50 +103,41 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     marginLeft: 4,
   },
-  timeline: {
-    flexDirection: 'column',
+  seccion: {
+    marginBottom: 20,
   },
-  itemRow: {
+  seccionHeader: {
     flexDirection: 'row',
-    minHeight: 80,
-  },
-  timeColumn: {
-    width: 48,
-    alignItems: 'flex-end',
-    paddingTop: 14,
-  },
-  timeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: PALETTE.onSurfaceVariant,
-  },
-  lineColumn: {
-    width: 24,
     alignItems: 'center',
+    marginBottom: 10,
+    gap: 8,
   },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginTop: 16,
-    zIndex: 2,
+  seccionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  line: {
-    position: 'absolute',
-    top: 28,
-    bottom: -16,
-    width: 2,
-    backgroundColor: PALETTE.hairline,
-    zIndex: 1,
+  seccionTitulo: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: PALETTE.ink,
   },
-  contentColumn: {
+  seccionLinea: {
     flex: 1,
-    paddingBottom: 24,
+    height: 1,
+    backgroundColor: PALETTE.hairline,
+  },
+  seccionVacia: {
+    fontSize: 15,
+    color: PALETTE.outline,
+    marginLeft: 4,
+    marginBottom: 4,
   },
   card: {
     backgroundColor: PALETTE.surfaceContainerLowest,
     borderRadius: RADIUS.cards,
     padding: 16,
+    marginBottom: 8,
     ...SHADOW.card,
   },
   cardHeader: {
@@ -149,19 +151,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
+  deleteBtn: {
+    padding: 4,
+    borderRadius: 8,
+  },
   deleteText: {
     color: PALETTE.outline,
     fontSize: 16,
   },
-  itemsText: {
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    paddingVertical: 3,
+  },
+  bullet: {
+    fontSize: 15,
+    color: PALETTE.outline,
+  },
+  itemNombre: {
+    flexShrink: 1,
     fontSize: 15,
     color: PALETTE.ink,
-    lineHeight: 22,
+  },
+  itemMeta: {
+    marginLeft: 'auto',
+    fontSize: 13,
+    color: PALETTE.onSurfaceVariant,
   },
   notaText: {
     fontSize: 13,
     color: PALETTE.onSurfaceVariant,
     fontStyle: 'italic',
     marginTop: 8,
-  }
+  },
 });

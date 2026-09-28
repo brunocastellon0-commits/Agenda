@@ -11,9 +11,9 @@ import { BottomNavigationBar } from '../components/ButtonNavigationBar';
 import { navigateToTab, TabKey } from '../navigation/tabs';
 
 import { getHabitosActivos, HabitoProgreso } from '../repositories/habitosRepo';
-import { getConductasActivas, ConductaProgreso, ConductaEvitar } from '../repositories/conductaRepo';
+import { getConductasActivas, ConductaProgreso, ConductaEvitar, fraseRachaEvitacion } from '../repositories/conductaRepo';
 import { getActividades, Actividad } from '../repositories/actividadRepo';
-import { getResumenDia, ResumenNutricional } from '../repositories/comidaRepo';
+import { getResumenDia, ResumenNutricional, RESUMEN_VACIO } from '../repositories/comidaRepo';
 import { getComparativa, RegistroFisico } from '../repositories/estadoFisicoRepo';
 import { getUsuarios } from '../repositories/usuario';
 import { toISODate } from '../utils/semana';
@@ -22,6 +22,7 @@ import { formatEstimado } from '../utils/nutricion';
 import HabitCard from '../components/HabitCard';
 import AvoidanceCard from '../components/AvoidanceCard';
 import AddConductaSheet from '../components/AddConductaSheet';
+import NuevaConductaSheet from '../components/NuevaConductaSheet';
 import FollowActivityModal from '../components/FollowActivityModal';
 import PeriodSelector from '../components/PeriodSelector';
 import WeeklyOverviewCard from '../components/WeeklyOverviewCard';
@@ -55,12 +56,13 @@ export default function MetricasScreen({ navigation }: Props) {
   const [habitos, setHabitos] = useState<HabitoProgreso[]>([]);
   const [conductas, setConductas] = useState<ConductaProgreso[]>([]);
   const [actividadesHoy, setActividadesHoy] = useState<Actividad[]>([]);
-  const [comidaResumen, setComidaResumen] = useState<ResumenNutricional>({ kcal: 0, prot: 0, carb: 0, grasa: 0 });
+  const [comidaResumen, setComidaResumen] = useState<ResumenNutricional>(RESUMEN_VACIO);
   const [estadoFisico, setEstadoFisico] = useState<RegistroFisico | null>(null);
 
   const [selectedConducta, setSelectedConducta] = useState<ConductaEvitar | null>(null);
   const [showFollowModal, setShowFollowModal] = useState(false);
   const [showManageModal, setShowManageModal] = useState(false);
+  const [showNuevaConducta, setShowNuevaConducta] = useState(false);
 
   const loadData = async (p: PeriodoMetricas) => {
     setLoading(true);
@@ -107,7 +109,7 @@ export default function MetricasScreen({ navigation }: Props) {
       if (topAvoidance && topAvoidance.rachaActual > 3) {
         baseInsights.unshift({
           tipo: 'tendencia_positiva',
-          mensaje: `Llevas ${topAvoidance.rachaActual} días sin ${topAvoidance.conducta.nombre.toLowerCase()}.`
+          mensaje: fraseRachaEvitacion(topAvoidance)
         });
       }
 
@@ -159,7 +161,9 @@ export default function MetricasScreen({ navigation }: Props) {
               </View>
               <View style={styles.summaryBox}>
                 <Text style={styles.summaryLabel}>COMIDA</Text>
-                <Text style={styles.summaryValue}>{formatEstimado(comidaResumen.kcal, '')}</Text>
+                <Text style={styles.summaryValue}>
+                  {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.kcal, '') : '—'}
+                </Text>
               </View>
             </View>
 
@@ -170,7 +174,7 @@ export default function MetricasScreen({ navigation }: Props) {
             {/* SECCIÓN: HÁBITOS */}
             <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
               <Text style={styles.sectionTitle}>Hábitos</Text>
-              <Pressable onPress={() => setShowManageModal(true)} style={({pressed}) => [pressed && pressedFeedback, { padding: 4 }]}>
+              <Pressable onPress={() => setShowManageModal(true)} style={({pressed}) => [styles.gearBtn, pressed && pressedFeedback]}>
                 <Ionicons name="settings-outline" size={20} color={PALETTE.outline} />
               </Pressable>
             </View>
@@ -189,12 +193,25 @@ export default function MetricasScreen({ navigation }: Props) {
             )}
 
             {/* SECCIÓN: CONDUCTAS */}
-            <View style={styles.sectionHeader}>
+            <View style={[styles.sectionHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
               <Text style={styles.sectionTitle}>Conductas a Evitar</Text>
+              <Pressable
+                accessibilityLabel="Crear conducta"
+                onPress={() => setShowNuevaConducta(true)}
+                style={({pressed}) => [styles.gearBtn, pressed && pressedFeedback]}
+              >
+                <Ionicons name="add" size={24} color={PALETTE.outline} />
+              </Pressable>
             </View>
             {conductas.length === 0 ? (
               <View style={styles.emptyCard}>
-                <Text style={styles.emptyDesc}>No tienes conductas registradas.</Text>
+                <Text style={styles.emptyDesc}>No tenés conductas registradas.</Text>
+                <Pressable
+                  style={({pressed}) => [styles.linkBtn, pressed && pressedFeedback]}
+                  onPress={() => setShowNuevaConducta(true)}
+                >
+                  <Text style={styles.linkText}>+ Crear conducta</Text>
+                </Pressable>
               </View>
             ) : (
               conductas.map(c => (
@@ -216,9 +233,11 @@ export default function MetricasScreen({ navigation }: Props) {
             >
               <View>
                 <Text style={styles.estadoLabel}>CALORÍAS REGISTRADAS</Text>
-                <Text style={styles.estadoValue}>{formatEstimado(comidaResumen.kcal, ' kcal')}</Text>
+                <Text style={styles.estadoValue}>
+                  {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.kcal, ' kcal') : '—'}
+                </Text>
                 <Text style={styles.estadoSub}>
-                  P: {formatEstimado(comidaResumen.prot, 'g')} · C: {formatEstimado(comidaResumen.carb, 'g')} · G: {formatEstimado(comidaResumen.grasa, 'g')}
+                  P: {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.prot, 'g') : '—'} · C: {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.carb, 'g') : '—'} · G: {comidaResumen.itemsEstimados > 0 ? formatEstimado(comidaResumen.grasa, 'g') : '—'}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={PALETTE.primary} />
@@ -275,6 +294,12 @@ export default function MetricasScreen({ navigation }: Props) {
         onClose={() => setShowManageModal(false)}
         onChanged={() => loadData(periodo)}
       />
+
+      <NuevaConductaSheet
+        visible={showNuevaConducta}
+        onClose={() => setShowNuevaConducta(false)}
+        onSaved={() => loadData(periodo)}
+      />
     </SafeAreaView>
   );
 }
@@ -328,6 +353,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: PALETTE.ink,
+  },
+  gearBtn: {
+    width: 44,
+    height: 44,
+    marginRight: -12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.cards,
   },
   emptyCard: {
     backgroundColor: PALETTE.surfaceContainer,

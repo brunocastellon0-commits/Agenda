@@ -120,7 +120,7 @@ export function GreetingHeader({
 
     return (
       <Text style={styles.subtitle}>
-        Tienes{' '}
+        Tenés{' '}
         <Text style={[styles.highlight, { color: accentColor }]}>
           {pendingCount} {pendingCount === 1 ? 'actividad' : 'actividades'}
         </Text>{' '}
