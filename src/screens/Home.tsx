@@ -10,7 +10,7 @@ import { MiDiaWidget } from '../widgets/MiDiaWidget';
 import { Ionicons } from '@expo/vector-icons';
 
 import { PALETTE, RADIUS, SHADOW, TYPE, pressedFeedback, tint } from '../theme/theme';
-import { Eyebrow, BigNumber, ColorBlock } from '../components/editorial';
+import { Eyebrow, BigNumber } from '../components/editorial';
 import { BottomNavigationBar } from '../components/ButtonNavigationBar';
 import { navigateToTab } from '../navigation/tabs';
 import { RootStackParamList } from '../navigation/types';
@@ -204,7 +204,7 @@ export default function HomeScreen({ navigation }: Props) {
               onPress={() => navigateToTab(navigation, 'inicio', 'actividades')}
             >
               <View style={styles.nodeHeadRow}>
-                <Text style={[styles.nodeLabel, { color: PALETTE.onAccent }]}>Actividades</Text>
+                <Text style={[styles.nodeLabel, { color: PALETTE.onAccent }]} numberOfLines={1}>Actividades</Text>
                 <Ionicons name="calendar-outline" size={20} color={PALETTE.onAccent} />
               </View>
               <BigNumber
@@ -223,8 +223,7 @@ export default function HomeScreen({ navigation }: Props) {
               onPress={() => navigateToTab(navigation, 'inicio', 'comida')}
             >
               <View style={styles.nodeHeadRow}>
-                <Text style={styles.nodeLabel}>Alimentación</Text>
-                <Ionicons name="restaurant-outline" size={20} color={PALETTE.categorias.comida} />
+                <Text style={styles.nodeLabel} numberOfLines={1}>Alimentación</Text>
               </View>
               <BigNumber
                 value={resumenNutricional.itemsEstimados > 0 ? formatEstimado(resumenNutricional.kcal, '') : '—'}
@@ -232,6 +231,12 @@ export default function HomeScreen({ navigation }: Props) {
                 color={PALETTE.categorias.comida}
                 size="displaySm"
                 label="registradas hoy"
+              />
+              <Ionicons
+                name="restaurant-outline"
+                size={20}
+                color={PALETTE.categorias.comida}
+                style={styles.cornerIconOpen}
               />
             </Pressable>
           </View>
@@ -244,8 +249,7 @@ export default function HomeScreen({ navigation }: Props) {
               onPress={() => navigateToTab(navigation, 'inicio', 'metricas')}
             >
               <View style={styles.nodeHeadRow}>
-                <Text style={[styles.nodeLabel, { color: PALETTE.onAccent }]}>Constancia</Text>
-                <Ionicons name="flame-outline" size={20} color={PALETTE.onAccent} />
+                <Text style={[styles.nodeLabel, { color: PALETTE.onAccent }]} numberOfLines={1}>Constancia</Text>
               </View>
               <BigNumber
                 value={String(rachaDias)}
@@ -255,6 +259,12 @@ export default function HomeScreen({ navigation }: Props) {
                 label="en racha"
                 labelTone="onColor"
               />
+              <Ionicons
+                name="flame-outline"
+                size={20}
+                color={PALETTE.onAccent}
+                style={styles.cornerIconSolid}
+              />
             </Pressable>
 
             {/* Autocontrol — tinte de área */}
@@ -263,7 +273,7 @@ export default function HomeScreen({ navigation }: Props) {
               onPress={() => navigateToTab(navigation, 'inicio', 'metricas')}
             >
               <View style={styles.nodeHeadRow}>
-                <Text style={styles.nodeLabel}>Autocontrol</Text>
+                <Text style={styles.nodeLabel} numberOfLines={1}>Autocontrol</Text>
                 <Ionicons name="shield-checkmark-outline" size={20} color={PALETTE.categorias.autocontrol} />
               </View>
               {totalConductasLimite > 0 ? (
@@ -291,7 +301,7 @@ export default function HomeScreen({ navigation }: Props) {
             >
               <View style={styles.estadoRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.nodeLabel}>Estado Físico</Text>
+                  <Text style={styles.nodeLabel} numberOfLines={1}>Estado Físico</Text>
                   <BigNumber
                     value={ultimoEstado?.peso ? `${ultimoEstado.peso}` : '—'}
                     unit={ultimoEstado?.peso ? 'kg' : undefined}
@@ -317,7 +327,7 @@ export default function HomeScreen({ navigation }: Props) {
             >
               <View style={styles.estadoRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.nodeLabel, { color: PALETTE.outline }]}>Modo Control</Text>
+                  <Text style={[styles.nodeLabel, { color: PALETTE.outline }]} numberOfLines={1}>Modo Control</Text>
                   <Text style={styles.controlTitle}>Tu Esquina</Text>
                   <Text style={[styles.nodeSubtext, { color: PALETTE.outline }]}>¿Necesitás un momento?</Text>
                 </View>
@@ -327,14 +337,6 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
 
         </View>
-
-        <ColorBlock variant="tint" color={PALETTE.primary} radius={RADIUS.block} style={styles.hintBlock}>
-          <View style={styles.nodeHeadRow}>
-            <Text style={styles.nodeLabel}>Análisis detallado</Text>
-            <Ionicons name="analytics-outline" size={20} color={PALETTE.primary} />
-          </View>
-          <Text style={styles.hintText}>Tu historial y tus tendencias viven en Métricas.</Text>
-        </ColorBlock>
 
       </ScrollView>
 
@@ -578,12 +580,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  hintBlock: {
-    marginTop: 32,
-    marginBottom: 8,
+  cornerIconOpen: {
+    position: 'absolute',
+    right: 0,
+    bottom: 16,
   },
-  hintText: {
-    ...TYPE.body,
-    color: PALETTE.ink,
-  }
+  cornerIconSolid: {
+    position: 'absolute',
+    right: 12,
+    bottom: 20,
+  },
 });

@@ -315,4 +315,17 @@ CREATE TABLE IF NOT EXISTS notif_config (
     clave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
 );
+
+-- 24. Sesiones de "Tu Esquina" (activación de entrenamiento)
+CREATE TABLE IF NOT EXISTS esquina_sesion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL, -- 'YYYY-MM-DD'
+    ganas INTEGER NOT NULL, -- 1..5
+    etapa_final TEXT,       -- etapa alcanzada al salir
+    respuestas TEXT,        -- JSON { preguntaId, opcionId }
+    intervenciones TEXT,    -- JSON [ids]
+    creada_en TEXT NOT NULL -- ISO completo
+);
+
+CREATE INDEX IF NOT EXISTS idx_esquina_sesion_fecha ON esquina_sesion(fecha);
 `;

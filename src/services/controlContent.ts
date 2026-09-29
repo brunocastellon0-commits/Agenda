@@ -34,18 +34,18 @@ export const FRASES_BIBLIOTECA: Frase[] = [
 
   // ROUND / COMBATE
   { id: 'r1', texto: 'Primer round. Nada más.', categoria: 'round', tonos: ['entrenador', 'frio'] },
-  { id: 'r2', texto: 'No pienses en toda la pelea. Mirá el round que tenés delante.', categoria: 'round', tonos: ['entrenador', 'coach'] },
+  { id: 'r2', texto: 'No pienses en toda la pelea. Mira el round que tienes delante.', categoria: 'round', tonos: ['entrenador', 'coach'] },
   { id: 'r3', texto: 'Todavía no terminó el round.', categoria: 'round', tonos: ['entrenador', 'intenso'] },
   { id: 'r4', texto: 'Vuelve a tu esquina.', categoria: 'round', tonos: ['entrenador', 'cinematico'] },
   { id: 'r5', texto: 'Respira. Recupera posición.', categoria: 'round', tonos: ['coach', 'entrenador'] },
   { id: 'r6', texto: 'Un golpe no decide una pelea. Un impulso tampoco decide tu historia.', categoria: 'round', tonos: ['cinematico', 'reflexivo'] },
   { id: 'r7', texto: 'No persigas la victoria. Protege este momento.', categoria: 'round', tonos: ['intenso', 'cinematico'] },
-  { id: 'r8', texto: 'Mantené la guardia.', categoria: 'round', tonos: ['entrenador', 'frio'] },
+  { id: 'r8', texto: 'Mantén la guardia.', categoria: 'round', tonos: ['entrenador', 'frio'] },
   { id: 'r9', texto: 'Un minuto más.', categoria: 'round', tonos: ['frio', 'coach'] },
-  { id: 'r10', texto: 'Quedate dentro del round.', categoria: 'round', tonos: ['coach', 'entrenador'] },
+  { id: 'r10', texto: 'Quédate dentro del round.', categoria: 'round', tonos: ['coach', 'entrenador'] },
   { id: 'r11', texto: 'El objetivo ahora no es ganar para siempre. Es no abandonar este momento.', categoria: 'round', tonos: ['reflexivo', 'coach'] },
   { id: 'r12', texto: 'Recupera el ritmo.', categoria: 'round', tonos: ['entrenador'] },
-  { id: 'r13', texto: 'Mirá al frente.', categoria: 'round', tonos: ['entrenador', 'intenso'] },
+  { id: 'r13', texto: 'Mira al frente.', categoria: 'round', tonos: ['entrenador', 'intenso'] },
   { id: 'r14', texto: 'Baja los hombros. Respira. Seguimos.', categoria: 'round', tonos: ['coach', 'calma'] },
   { id: 'r15', texto: 'Nadie gana la pelea en la esquina. Pero aquí se recupera el aire.', categoria: 'round', tonos: ['entrenador'] },
   { id: 'r16', texto: 'El dolor del entrenamiento siempre es menor al dolor de la derrota.', categoria: 'round', tonos: ['intenso'] },
@@ -95,19 +95,19 @@ export const FRASES_BIBLIOTECA: Frase[] = [
   // COACH / ENTRENADOR
   { id: 'c1', texto: 'Mírame. Respira. Todavía no tomes la decisión.', categoria: 'coach', tonos: ['coach', 'entrenador'] },
   { id: 'c2', texto: 'Bien. Ya identificaste lo que está pasando. Ahora hacemos algo al respecto.', categoria: 'coach', tonos: ['coach'] },
-  { id: 'c3', texto: 'No necesitás explicarlo. Necesitás atravesar este round.', categoria: 'coach', tonos: ['entrenador', 'intenso'] },
-  { id: 'c4', texto: 'Quedate conmigo durante estos próximos 90 segundos.', categoria: 'coach', tonos: ['coach', 'calma'] },
+  { id: 'c3', texto: 'No necesitas explicarlo. Necesitas atravesar este round.', categoria: 'coach', tonos: ['entrenador', 'intenso'] },
+  { id: 'c4', texto: 'Quédate conmigo durante estos próximos 90 segundos.', categoria: 'coach', tonos: ['coach', 'calma'] },
   { id: 'c5', texto: 'Un paso. Después otro.', categoria: 'coach', tonos: ['coach', 'frio'] },
-  { id: 'c6', texto: 'No corras detrás del impulso. Dejalo pasar mientras recuperás el control.', categoria: 'coach', tonos: ['coach', 'reflexivo'] },
+  { id: 'c6', texto: 'No corras detrás del impulso. Déjalo pasar mientras recuperas el control.', categoria: 'coach', tonos: ['coach', 'reflexivo'] },
   { id: 'c7', texto: 'Bien. El primer round ya empezó.', categoria: 'coach', tonos: ['coach', 'entrenador'] },
   { id: 'c8', texto: 'No estamos buscando perfección. Estamos buscando una decisión consciente.', categoria: 'coach', tonos: ['coach', 'reflexivo'] },
 
   // INTENSAS
   { id: 'i1', texto: 'Aquí es donde normalmente cedes. Esta vez observa el momento.', categoria: 'intensa', tonos: ['intenso'] },
-  { id: 'i2', texto: 'No necesitás sentirte motivado.', categoria: 'intensa', tonos: ['intenso', 'frio'] },
+  { id: 'i2', texto: 'No necesitas sentirte motivado.', categoria: 'intensa', tonos: ['intenso', 'frio'] },
   { id: 'i3', texto: 'Haz lo que decidiste cuando estabas tranquilo.', categoria: 'intensa', tonos: ['intenso', 'coach'] },
-  { id: 'i4', texto: 'El impulso está haciendo ruido. No tenés que hacerlo.', categoria: 'intensa', tonos: ['intenso', 'reflexivo'] },
-  { id: 'i5', texto: 'Mantené la posición.', categoria: 'intensa', tonos: ['intenso', 'entrenador'] },
+  { id: 'i4', texto: 'El impulso está haciendo ruido. No tienes que hacerlo.', categoria: 'intensa', tonos: ['intenso', 'reflexivo'] },
+  { id: 'i5', texto: 'Mantén la posición.', categoria: 'intensa', tonos: ['intenso', 'entrenador'] },
   { id: 'i6', texto: 'No te distraigas de la decisión que ya tomaste.', categoria: 'intensa', tonos: ['intenso', 'coach'] },
   { id: 'i7', texto: 'Este es exactamente el tipo de momento para el que estabas preparando este sistema.', categoria: 'intensa', tonos: ['intenso', 'reflexivo'] },
   { id: 'i8', texto: 'No busques una salida rápida. Busca recuperar el control.', categoria: 'intensa', tonos: ['intenso', 'coach'] },
@@ -137,14 +137,14 @@ export const FRASES_BIBLIOTECA: Frase[] = [
   { id: 'h9', texto: 'Ese impulso tiene la misma credibilidad que un correo de spam.', categoria: 'humor', tonos: ['seco'] },
 
   // CALMA
-  { id: 'ca1', texto: 'No tenés que luchar contra el momento. Solo atravesarlo.', categoria: 'calma', tonos: ['calma', 'reflexivo'] },
+  { id: 'ca1', texto: 'No tienes que luchar contra el momento. Solo atravesarlo.', categoria: 'calma', tonos: ['calma', 'reflexivo'] },
   { id: 'ca2', texto: 'Baja el ritmo.', categoria: 'calma', tonos: ['calma', 'frio'] },
   { id: 'ca3', texto: 'Respira.', categoria: 'calma', tonos: ['calma', 'frio', 'coach'] },
-  { id: 'ca4', texto: 'Dejalo pasar sin perseguirlo.', categoria: 'calma', tonos: ['calma', 'reflexivo'] },
-  { id: 'ca5', texto: 'No necesitás resolver toda tu vida ahora.', categoria: 'calma', tonos: ['calma', 'coach'] },
+  { id: 'ca4', texto: 'Déjalo pasar sin perseguirlo.', categoria: 'calma', tonos: ['calma', 'reflexivo'] },
+  { id: 'ca5', texto: 'No necesitas resolver toda tu vida ahora.', categoria: 'calma', tonos: ['calma', 'coach'] },
   { id: 'ca6', texto: 'Este momento tiene un principio y tendrá un final.', categoria: 'calma', tonos: ['calma', 'reflexivo'] },
-  { id: 'ca7', texto: 'Quedate aquí un poco más.', categoria: 'calma', tonos: ['calma', 'coach'] },
-  { id: 'ca8', texto: 'Podés esperar.', categoria: 'calma', tonos: ['calma', 'frio'] },
+  { id: 'ca7', texto: 'Quédate aquí un poco más.', categoria: 'calma', tonos: ['calma', 'coach'] },
+  { id: 'ca8', texto: 'Puedes esperar.', categoria: 'calma', tonos: ['calma', 'frio'] },
   { id: 'ca9', texto: 'Relaja la mandíbula. Suelta la tensión.', categoria: 'calma', tonos: ['calma'] },
   { id: 'ca10', texto: 'No hay emergencia. Solo una sensación pasajera.', categoria: 'calma', tonos: ['calma'] },
   { id: 'ca11', texto: 'Permítete sentirlo sin reaccionar.', categoria: 'calma', tonos: ['calma', 'reflexivo'] },
@@ -178,72 +178,181 @@ export const FRASES_BIBLIOTECA: Frase[] = [
   
   // TRANSICIONES
   { id: 'tr1', texto: 'Vamos a ver qué está pasando.', categoria: 'transicion', tonos: ['coach'] },
-  { id: 'tr2', texto: 'No tenés que resolverlo todo. Solo empezá.', categoria: 'transicion', tonos: ['coach', 'calma'] },
+  { id: 'tr2', texto: 'No tienes que resolverlo todo. Solo empieza.', categoria: 'transicion', tonos: ['coach', 'calma'] },
   { id: 'tr3', texto: 'Entonces cambiamos de estrategia.', categoria: 'transicion', tonos: ['frio', 'entrenador'] },
   { id: 'tr4', texto: 'Todavía no terminó.', categoria: 'transicion', tonos: ['frio', 'intenso'] },
   { id: 'tr5', texto: 'La decisión es tuya. Hazla conscientemente.', categoria: 'transicion', tonos: ['reflexivo', 'frio'] }
 ];
 
-export type TipoIntervencion = 'distancia' | 'reset' | 'movimiento' | 'perspectiva' | 'combo';
+/** 'suave' | 'countdown' | 'sombra' | 'estandar' — reglas de UX que aplican
+ *  la respuesta de CABEZA a la intervención de ENTRADA. No son evaluación psicológica. */
+export type ReglaEntrada = 'suave' | 'countdown' | 'sombra' | 'estandar';
+export type FaseIntervencion = 'activacion' | 'entrada';
+export type TipoIntervencion = 'movimiento' | 'respiracion' | 'sombra' | 'countdown';
 
 export interface Intervencion {
   id: string;
-  tipo: TipoIntervencion;
+  fase: FaseIntervencion;
   titulo: string;
-  pasos: string[];
-  preguntas?: string[];
+  instruccion: string;
+  /** ej. '10 flexiones' — si existe, el CTA es [HECHO] */
+  reps?: string;
+  /** si existe, el anillo pasa a modo intervalo y el CTA es [EMPEZAR] */
+  duracionSeg?: number;
+  bandas: number[];
+  regla?: ReglaEntrada;
 }
 
 export const INTERVENCIONES: Intervencion[] = [
-  {
-    id: 'dist1',
-    tipo: 'distancia',
-    titulo: 'CAMBIA DE ESCENARIO',
-    pasos: ['Levantate.', 'Dejá el lugar donde estás.', 'Cambiá de habitación.', 'Caminá un momento.', 'Volvé.']
-  },
-  {
-    id: 'res1',
-    tipo: 'reset',
+  // ── ACTIVACIÓN (1ª intervención, por banda de ganas) ──
+  { id: 'act_agua', fase: 'activacion', titulo: 'UN VASO DE AGUA', bandas: [1, 2],
+    instruccion: 'Toma un vaso de agua sin apuro. Baja el ritmo mientras tanto.' },
+  { id: 'act_respira444', fase: 'activacion', titulo: 'RESPIRACIÓN 4-4-4', bandas: [1, 2],
+    instruccion: 'Inhala contando 4. Mantén 4. Exhala 4. Tres ciclos.', duracionSeg: 36 },
+  { id: 'act_caminar', fase: 'activacion', titulo: 'CAMINA UN MINUTO', bandas: [1, 2],
+    instruccion: 'Levántate y camina por la casa durante un minuto.', duracionSeg: 60 },
+
+  { id: 'act_flex', fase: 'activacion', titulo: '10 FLEXIONES', bandas: [3],
+    instruccion: 'Diez flexiones, a tu ritmo. Sin apuro.', reps: '10 flexiones' },
+  { id: 'act_sent', fase: 'activacion', titulo: '15 SENTADILLAS', bandas: [3],
+    instruccion: 'Quince sentadillas, controlando el descenso.', reps: '15 sentadillas' },
+  { id: 'act_plancha', fase: 'activacion', titulo: 'PLANCHA DE 30', bandas: [3],
+    instruccion: 'Mantén la plancha 30 segundos con la espalda recta.', duracionSeg: 30 },
+
+  { id: 'act_burpees', fase: 'activacion', titulo: '10 BURPEES', bandas: [4, 5],
+    instruccion: 'Diez burpees. Si necesitas frenar un momento, frena.', reps: '10 burpees' },
+  { id: 'act_salto', fase: 'activacion', titulo: '15 SENTADILLAS CON SALTO', bandas: [4, 5],
+    instruccion: 'Quince sentadillas con salto. Elevación corta.', reps: '15 con salto' },
+  { id: 'act_sprint', fase: 'activacion', titulo: 'SPRINT EN EL LUGAR', bandas: [4, 5],
+    instruccion: 'Rodillas arriba, 30 segundos sin frenar.', duracionSeg: 30 },
+
+  // ── ENTRADA (2ª intervención corta, condicionada por la respuesta de CABEZA) ──
+  { id: 'ent_suave30', fase: 'entrada', regla: 'suave', bandas: [1, 2, 3, 4, 5],
+    titulo: '30 SEGUNDOS DE MOVIMIENTO SUAVE',
+    instruccion: 'Estira los brazos y mueve los hombros. Mantente en movimiento.', duracionSeg: 30 },
+  { id: 'ent_suave_respira', fase: 'entrada', regla: 'suave', bandas: [1, 2, 3, 4, 5],
     titulo: 'RESPIRACIÓN 4-4-4',
-    pasos: ['Inhalá', 'Mantené', 'Exhalá']
-  },
-  {
-    id: 'mov1',
-    tipo: 'movimiento',
-    titulo: 'MISIÓN: CAMBIA EL ESCENARIO',
-    pasos: ['Levantate.', 'Caminá hasta otra habitación.', 'Tomá agua.', 'Quedate allí durante 60 segundos.']
-  },
-  {
-    id: 'per1',
-    tipo: 'perspectiva',
-    titulo: 'PREGUNTAS',
-    pasos: [],
-    preguntas: [
-      '¿Qué esperas obtener si cedes al impulso?',
-      '¿Cuánto crees que durará esa sensación?',
-      '¿Y qué quieres sentir mañana?'
-    ]
-  },
-  {
-    id: 'per2',
-    tipo: 'perspectiva',
-    titulo: 'PREGUNTAS',
-    pasos: [],
-    preguntas: [
-      'Si haces esto ahora, ¿cómo te sentirás en 10 minutos?',
-      '¿Vale la pena intercambiar tu progreso por ese momento?'
-    ]
-  },
-  {
-    id: 'com1',
-    tipo: 'combo',
-    titulo: 'SALIR DEL IMPULSO',
-    pasos: ['Levantate', 'Cambiá de lugar', 'Tomá agua', 'Caminá 2 minutos', 'Volvé']
-  },
-  {
-    id: 'com2',
-    tipo: 'combo',
-    titulo: 'RUTINA DE CHOQUE',
-    pasos: ['Ponete de pie', 'Respirá hondo 3 veces', 'Lavate la cara con agua fría', 'Mirá por una ventana 30 segundos']
-  }
+    instruccion: 'Inhala 4, mantén 4, exhala 4. Tres ciclos.', duracionSeg: 36 },
+
+  { id: 'ent_cd_sent', fase: 'entrada', regla: 'countdown', bandas: [1, 2, 3, 4, 5],
+    titulo: 'CUENTA 5 · 4 · 3 · 2 · 1',
+    instruccion: 'Cuenta hacia atrás en voz alta y termina con 10 sentadillas.', reps: '10 sentadillas' },
+  { id: 'ent_cd_flex', fase: 'entrada', regla: 'countdown', bandas: [1, 2, 3, 4, 5],
+    titulo: 'CUENTA 5 · 4 · 3 · 2 · 1',
+    instruccion: 'Cuenta hacia atrás en voz alta y termina con 10 flexiones.', reps: '10 flexiones' },
+
+  { id: 'ent_sombra20', fase: 'entrada', regla: 'sombra', bandas: [1, 2, 3, 4, 5],
+    titulo: '20 SEGUNDOS DE SOMBRA',
+    instruccion: 'Guardia arriba, golpes cortos. Solo muévete.', duracionSeg: 20 },
+  { id: 'ent_sombra30', fase: 'entrada', regla: 'sombra', bandas: [1, 2, 3, 4, 5],
+    titulo: '30 SEGUNDOS DE SOMBRA',
+    instruccion: 'Muévete sin frenar durante 30 segundos.', duracionSeg: 30 },
+
+  { id: 'ent_std_sent', fase: 'entrada', regla: 'estandar', bandas: [1, 2, 3, 4, 5],
+    titulo: '15 SENTADILLAS',
+    instruccion: 'Quince sentadillas. La segunda vuelta es corta.', reps: '15 sentadillas' },
+  { id: 'ent_std_flex', fase: 'entrada', regla: 'estandar', bandas: [1, 2, 3, 4, 5],
+    titulo: '10 FLEXIONES',
+    instruccion: 'Diez flexiones. Solo para entrar en movimiento.', reps: '10 flexiones' },
 ];
+
+export interface OpcionPregunta {
+  id: string;
+  etiqueta: string;
+  entrada: ReglaEntrada;
+}
+
+export interface Pregunta {
+  id: string;
+  texto: string;
+  opciones: OpcionPregunta[];
+}
+
+export const PREGUNTAS: Pregunta[] = [
+  { id: 'q_freno', texto: '¿Qué te está frenando hoy?', opciones: [
+    { id: 'cansancio', etiqueta: 'Cansancio', entrada: 'suave' },
+    { id: 'pereza', etiqueta: 'Pereza', entrada: 'countdown' },
+    { id: 'estres', etiqueta: 'Estrés', entrada: 'sombra' },
+    { id: 'tiempo', etiqueta: 'Falta de tiempo', entrada: 'estandar' },
+    { id: 'nada', etiqueta: 'Nada', entrada: 'estandar' },
+  ]},
+  { id: 'q_sentir', texto: '¿Qué quieres sentir cuando termines?', opciones: [
+    { id: 'energia', etiqueta: 'Más energía', entrada: 'estandar' },
+    { id: 'tranquilo', etiqueta: 'Más tranquilo', entrada: 'sombra' },
+    { id: 'fuerte', etiqueta: 'Más fuerte', entrada: 'countdown' },
+    { id: 'orgullo', etiqueta: 'Orgulloso de haber venido', entrada: 'estandar' },
+  ]},
+  { id: 'q_trabajo', texto: '¿Qué vas a trabajar hoy?', opciones: [
+    { id: 'tecnica', etiqueta: 'Técnica', entrada: 'estandar' },
+    { id: 'fuerza', etiqueta: 'Fuerza', entrada: 'countdown' },
+    { id: 'cardio', etiqueta: 'Cardio', entrada: 'sombra' },
+    { id: 'todo', etiqueta: 'Todo un poco', entrada: 'estandar' },
+  ]},
+  { id: 'q_necesita', texto: '¿Qué necesitas hoy?', opciones: [
+    { id: 'despacio', etiqueta: 'Empezar despacio', entrada: 'suave' },
+    { id: 'exigirme', etiqueta: 'Exigirme', entrada: 'countdown' },
+    { id: 'despejar', etiqueta: 'Despejarme', entrada: 'sombra' },
+    { id: 'cumplir', etiqueta: 'Simplemente cumplir', entrada: 'estandar' },
+  ]},
+  { id: 'q_veinte', texto: 'Si hoy solo haces 20 minutos, ¿igual cuenta?', opciones: [
+    { id: 'si_cuenta', etiqueta: 'Sí, cuenta', entrada: 'estandar' },
+  ]},
+];
+
+/** Etapas del indicador ●──○──○──○ (4 pips). */
+export const ETAPAS = ['ESTADO', 'ACTIVACIÓN', 'CABEZA', 'ENTRADA'] as const;
+
+export const CIERRE_TEXTO = 'YA ESTÁ. No tienes que pensar en todo el entrenamiento. Solo empieza.';
+export const TEXTO_BAJAS_GANAS = 'Hoy no llegas con energía. No hace falta para empezar.';
+export const TEXTO_ALTA_GANAS = 'ESTÁS ENCENDIDO. No desperdiciemos el impulso.';
+export const TEXTO_SEGUIMOS = '¿Seguimos?';
+
+const hash = (texto: string): number => {
+  let h = 5381;
+  for (let i = 0; i < texto.length; i++) h = ((h << 5) + h + texto.charCodeAt(i)) >>> 0;
+  return h;
+};
+
+interface SeleccionOpts {
+  evitadoIds?: string[];
+  regla?: ReglaEntrada;
+  semilla?: string;
+}
+
+/**
+ * Selección determinista (semilla fecha+día, sin IA): filtra por fase y banda,
+ * estrecha por la regla de entrada cuando corresponde y descarta las ya usadas
+ * (historial de la sesión + `getUltimaSesion()`).
+ */
+export const seleccionarIntervencion = (
+  fase: FaseIntervencion,
+  banda: number,
+  opts: SeleccionOpts = {}
+): Intervencion | null => {
+  let pool = INTERVENCIONES.filter(i => i.fase === fase && i.bandas.includes(banda));
+
+  if (fase === 'entrada' && opts.regla) {
+    const porRegla = pool.filter(i => i.regla === opts.regla);
+    if (porRegla.length > 0) pool = porRegla;
+  }
+
+  const evitados = opts.evitadoIds ?? [];
+  if (evitados.length > 0) {
+    const resto = pool.filter(i => !evitados.includes(i.id));
+    if (resto.length > 0) pool = resto;
+  }
+
+  if (pool.length === 0) return null;
+  return pool[hash(`${opts.semilla ?? ''}:${fase}`) % pool.length];
+};
+
+/** Pregunta de CABEZA: 1 por sesión, determinista. */
+export const seleccionarPregunta = (semilla: string): Pregunta =>
+  PREGUNTAS[hash(`${semilla}:cabeza`) % PREGUNTAS.length];
+
+/** Línea de apoyo del round (banco de frases, categorías de apoyo). */
+export const fraseApoyo = (categorias: CategoriaFrase[], semilla: string): Frase => {
+  const posibles = FRASES_BIBLIOTECA.filter(f => categorias.includes(f.categoria));
+  const banco = posibles.length > 0 ? posibles : FRASES_BIBLIOTECA;
+  return banco[hash(semilla) % banco.length];
+};

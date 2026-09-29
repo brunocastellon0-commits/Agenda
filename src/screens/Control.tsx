@@ -1,320 +1,553 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Animated, Easing, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Animated, Easing, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../navigation/types';
-import { PALETTE, RADIUS, SHADOW, pressedFeedback, tint } from '../theme/theme';
+import { PALETTE, RADIUS, TYPE, pressedFeedback } from '../theme/theme';
 import { Ionicons } from '@expo/vector-icons';
-import { FRASES_BIBLIOTECA, INTERVENCIONES, Frase, Intervencion, Tone } from '../services/controlContent';
+import {
+  ETAPAS,
+  CIERRE_TEXTO,
+  TEXTO_BAJAS_GANAS,
+  TEXTO_ALTA_GANAS,
+  TEXTO_SEGUIMOS,
+  fraseApoyo,
+  seleccionarIntervencion,
+  seleccionarPregunta,
+  CategoriaFrase,
+  Frase,
+  Intervencion,
+  OpcionPregunta,
+  Pregunta,
+  ReglaEntrada,
+} from '../services/controlContent';
+import { cerrarSesion, iniciarSesion, getUltimaSesion } from '../repositories/esquinaRepo';
+import { toISODate } from '../utils/semana';
 
 type Props = StackScreenProps<RootStackParamList, 'Control'>;
 
-type Step = 'intensidíad' | 'contexto' | 'preparacion' | 'round' | 'evaluacion' | 'momento_clave' | 'final';
+type Etapa = 'estado' | 'activacion' | 'cabeza' | 'entrada';
+type EntradaSub = 'seguimos' | 'intervencion' | 'cierre';
+type Reloj = { modo: 'round' | 'intervalo'; restante: number };
 
-const CONTEXTOS = [
-  'Tengo ganas de hacerlo',
-  'Estoy aburrido',
-  'Estoy estresado',
-  'Busco una excusa',
-  'A punto de romper',
-  'Ansiedíad',
-  'Hábito automático',
-  'Presión social'
-];
+const ROUND_ACTIVACION = 90;
+const ROUND_ENTRADA = 30;
+
+/** Frase corta asociada a cada extremo de la escala (2-4 quedan vacíos). */
+const ESCALA_FRASES: Record<number, string> = {
+  1: 'PUEDO MANEJARLO',
+  5: 'EMPIEZA EL CONFLICTO',
+};
+
+const categoriasApoyo = (ganas: number): CategoriaFrase[] =>
+  ganas <= 2
+    ? ['round', 'calma', 'coach']
+    : ganas >= 4
+      ? ['round', 'intensa', 'coach']
+      : ['round', 'coach', 'transicion'];
+
+const formatTime = (s: number) => {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${sec.toString().padStart(2, '0')}`;
+};
 
 export default function ControlScreen({ navigation }: Props) {
-  const userTone: Tone = 'entrenador';
+  const [etapa, setEtapa] = useState<Etapa>('estado');
+  const [entradaSub, setEntradaSub] = useState<EntradaSub>('intervencion');
+  const [ganas, setGanas] = useState(3);
+  const [pregunta, setPregunta] = useState<Pregunta | null>(null);
+  const [intervencion, setIntervencion] = useState<Intervencion | null>(null);
+  const [completado, setCompletado] = useState(false);
+  const [reloj, setReloj] = useState<Reloj>({ modo: 'round', restante: ROUND_ACTIVACION });
+  const [frase, setFrase] = useState<Frase | null>(null);
 
-  const [step, setStep] = useState<Step>('intensidíad');
-  const [intensidíad, setIntensidíad] = useState<number>(5);
-  const [contexto, setContexto] = useState<string>('');
-  
-  const [currentRound, setCurrentRound] = useState(1);
-  const [maxRounds, setMaxRounds] = useState(2);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [timerActive, setTimerActive] = useState(false);
-  
-  const [fraseActual, setFraseActual] = useState<Frase | null>(null);
-  const [intervencionActual, setIntervencionActual] = useState<Intervencion | null>(null);
-  const [comboStep, setComboStep] = useState(0);
+  const semillaRef = useRef(toISODate(new Date()));
+  const etapaRef = useRef<Etapa>(etapa);
+  const entradaSubRef = useRef<EntradaSub>(entradaSub);
+  const relojRef = useRef<Reloj>(reloj);
+  const ganasRef = useRef(ganas);
+  const intervencionRef = useRef<Intervencion | null>(intervencion);
+  const respuestaRef = useRef<{ preguntaId: string; opcionId: string; regla: ReglaEntrada } | null>(null);
+
+  const sesionIdRef = useRef<number | null>(null);
+  const sesionIniciadaRef = useRef(false);
+  const sesionCerradaRef = useRef(false);
+  const animandoRef = useRef(false);
+  const montadoRef = useRef(true);
+  const yendoRef = useRef(false);
+
+  const usadasRef = useRef<string[]>([]);
+  const ultimasRef = useRef<string[]>([]);
+  const roundBaseRef = useRef(ROUND_ACTIVACION);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const checkAnim = useRef(new Animated.Value(1)).current;
+  const loopRef = useRef<Animated.CompositeAnimation | null>(null);
+  const tickRef = useRef<() => void>(() => {});
 
-  const getFrase = (cat?: string): Frase => {
-    let posibles = FRASES_BIBLIOTECA.filter(f => f.tonos.includes(userTone));
-    if (cat) posibles = posibles.filter(f => f.categoria === cat);
-    if (posibles.length === 0) posibles = FRASES_BIBLIOTECA; 
-    return posibles[Math.floor(Math.random() * posibles.length)];
+  const cambiarEtapa = (e: Etapa) => {
+    etapaRef.current = e;
+    setEtapa(e);
   };
 
-  const getIntervencion = (evitarId?: string): Intervencion => {
-    let posibles = INTERVENCIONES;
-    if (evitarId) posibles = posibles.filter(i => i.id !== evitarId);
-    return posibles[Math.floor(Math.random() * posibles.length)];
+  const cambiarEntradaSub = (s: EntradaSub) => {
+    entradaSubRef.current = s;
+    setEntradaSub(s);
   };
 
-  const animateIn = () => {
+  const aplicarReloj = (nuevo: Reloj) => {
+    relojRef.current = nuevo;
+    setReloj(nuevo);
+  };
+
+  const registrarUsada = (id: string) => {
+    if (!usadasRef.current.includes(id)) usadasRef.current.push(id);
+  };
+
+  const avanzarTrasCompletar = () => {
+    animandoRef.current = false;
+    if (etapaRef.current === 'activacion') {
+      cambiarEtapa('cabeza');
+    } else if (etapaRef.current === 'entrada' && entradaSubRef.current === 'intervencion') {
+      cambiarEntradaSub('cierre');
+    }
+  };
+
+  const completarIntervencion = () => {
+    if (animandoRef.current) return;
+    const actual = intervencionRef.current;
+    if (!actual) return;
+    animandoRef.current = true;
+    registrarUsada(actual.id);
+    setCompletado(true);
+    checkAnim.setValue(0);
+    Animated.spring(checkAnim, {
+      toValue: 1,
+      friction: 5,
+      tension: 80,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      animandoRef.current = false;
+      if (finished && montadoRef.current) avanzarTrasCompletar();
+    });
+  };
+
+  // Único setInterval de la pantalla: callback por ref, se crea una sola vez.
+  useEffect(() => {
+    tickRef.current = () => {
+      const actual = relojRef.current;
+      if (actual.restante <= 0) return;
+      const restante = actual.restante - 1;
+      aplicarReloj({ modo: actual.modo, restante });
+      if (restante === 0 && actual.modo === 'intervalo') {
+        aplicarReloj({ modo: 'round', restante: roundBaseRef.current });
+        completarIntervencion();
+      }
+    };
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => tickRef.current(), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Anti-repetición: ids de la última sesión registrada.
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const ultima = await getUltimaSesion();
+        if (!vivo || !ultima?.intervenciones) return;
+        const ids = JSON.parse(ultima.intervenciones);
+        if (Array.isArray(ids)) {
+          ultimasRef.current = ids.filter((x): x is string => typeof x === 'string');
+        }
+      } catch {
+        console.error('esquina: no se pudo leer la última sesión');
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    montadoRef.current = true;
+    return () => {
+      montadoRef.current = false;
+      loopRef.current?.stop();
+    };
+  }, []);
+
+  // Fade + spring al cambiar de etapa (patrón ya usado en la pantalla).
+  useEffect(() => {
     fadeAnim.setValue(0);
     scaleAnim.setValue(0.95);
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true })
+      Animated.spring(scaleAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
     ]).start();
-  };
+  }, [etapa, entradaSub, fadeAnim, scaleAnim]);
 
-  useEffect(() => { animateIn(); }, [step]);
-
+  // Pulso del anillo: loop con cleanup garantizado (.stop() al salir o desmontar).
+  const mostrarAnillo =
+    etapa === 'activacion' || (etapa === 'entrada' && entradaSub === 'intervencion');
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (timerActive && timeLeft > 0) {
-      interval = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    } else if (timerActive && timeLeft === 0) {
-      setTimerActive(false);
-      setStep('evaluacion');
-    }
-    return () => clearInterval(interval);
-  }, [timerActive, timeLeft]);
-
-  useEffect(() => {
-    if (step === 'round') {
-      Animated.loop(
+    if (mostrarAnillo) {
+      const loop = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 1.05, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 2000, easing: Easing.inOut(Easing.ease), useNativeDriver: true })
+          Animated.timing(pulseAnim, {
+            toValue: 1.04,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 2000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
         ])
-      ).start();
+      );
+      loopRef.current = loop;
+      loop.start();
     } else {
+      loopRef.current?.stop();
+      loopRef.current = null;
       pulseAnim.setValue(1);
     }
-  }, [step]);
+    return () => {
+      loopRef.current?.stop();
+      loopRef.current = null;
+    };
+  }, [mostrarAnillo, pulseAnim]);
 
-  const handleIntensidíad = (val: number) => {
-    setIntensidíad(val);
-    if (val <= 3) setMaxRounds(1);
-    else if (val <= 6) setMaxRounds(2);
-    else if (val <= 8) setMaxRounds(3);
-    else setMaxRounds(4); 
-    setStep('contexto');
-  };
-
-  const handleContexto = (ctx: string) => {
-    setContexto(ctx);
-    setStep('preparacion');
-    setTimeout(() => {
-      iniciarRound(1, false);
-    }, 2500);
-  };
-
-  const iniciarRound = (roundNum: number, esAgresivo: boolean) => {
-    setCurrentRound(roundNum);
-    setComboStep(0);
-    
-    let dur = 90;
-    if (roundNum === 2) dur = 120;
-    if (roundNum >= 3) dur = 180;
-    
-    setTimeLeft(dur);
-    setFraseActual(getFrase(esAgresivo ? 'intensa' : 'round'));
-    setIntervencionActual(getIntervencion());
-    setStep('round');
-    setTimerActive(true);
-  };
-
-  const handleEvaluacion = (estado: 'mejor' | 'igual' | 'peor' | 'recaidía') => {
-    if (estado === 'recaidía') {
-      setFraseActual(getFrase('post_recaida'));
-      setStep('final');
-      return;
+  const salir = () => {
+    if (yendoRef.current) return;
+    const id = sesionIdRef.current;
+    if (id !== null && !sesionCerradaRef.current) {
+      sesionCerradaRef.current = true;
+      const etapaFinal =
+        etapaRef.current === 'entrada'
+          ? `entrada:${entradaSubRef.current}`
+          : etapaRef.current;
+      const resp = respuestaRef.current;
+      void cerrarSesion(id, {
+        etapaFinal,
+        respuestas: resp
+          ? { preguntaId: resp.preguntaId, opcionId: resp.opcionId }
+          : {},
+        intervenciones: [...usadasRef.current],
+      }).catch(() => {
+        console.error('esquina: no se pudo cerrar la sesión');
+      });
     }
-    
-    if (estado === 'mejor' || currentRound >= maxRounds) {
-      setStep('momento_clave');
-    } else if (estado === 'igual') {
-      iniciarRound(currentRound + 1, false);
-    } else if (estado === 'peor') {
-      iniciarRound(currentRound + 1, true);
+    yendoRef.current = true;
+    navigation.goBack();
+  };
+
+  const handleGanas = (n: number) => {
+    if (sesionIniciadaRef.current) return;
+    sesionIniciadaRef.current = true;
+
+    ganasRef.current = n;
+    setGanas(n);
+    setPregunta(seleccionarPregunta(semillaRef.current));
+    const elegida = seleccionarIntervencion('activacion', n, {
+      evitadoIds: [...ultimasRef.current],
+      semilla: semillaRef.current,
+    });
+    intervencionRef.current = elegida;
+    setIntervencion(elegida);
+    setCompletado(false);
+    setFrase(fraseApoyo(categoriasApoyo(n), semillaRef.current));
+    usadasRef.current = [];
+    roundBaseRef.current = ROUND_ACTIVACION;
+    aplicarReloj({ modo: 'round', restante: ROUND_ACTIVACION });
+    cambiarEtapa('activacion');
+
+    (async () => {
+      try {
+        sesionIdRef.current = await iniciarSesion(n);
+      } catch {
+        console.error('esquina: no se pudo iniciar la sesión');
+        if (montadoRef.current) {
+          Alert.alert('No se pudo registrar la sesión', 'Puedes continuar igual.');
+        }
+      }
+    })();
+  };
+
+  const handleEmpezar = () => {
+    const actual = intervencionRef.current;
+    if (!actual || !actual.duracionSeg || animandoRef.current) return;
+    if (relojRef.current.modo === 'round') {
+      roundBaseRef.current = relojRef.current.restante;
+    }
+    aplicarReloj({ modo: 'intervalo', restante: actual.duracionSeg });
+  };
+
+  const handleListo = () => {
+    aplicarReloj({ modo: 'round', restante: roundBaseRef.current });
+    completarIntervencion();
+  };
+
+  const handleCambiarReto = () => {
+    const actual = intervencionRef.current;
+    if (!actual || animandoRef.current) return;
+    const evitados = [...usadasRef.current, actual.id, ...ultimasRef.current];
+    const siguiente = seleccionarIntervencion(actual.fase, ganasRef.current, {
+      regla: actual.fase === 'entrada' ? respuestaRef.current?.regla : undefined,
+      evitadoIds: evitados,
+      semilla: `${semillaRef.current}:${evitados.length}`,
+    });
+    const elegida = siguiente;
+    if (!elegida) return;
+    intervencionRef.current = elegida;
+    setIntervencion(elegida);
+    setCompletado(false);
+    animandoRef.current = false;
+    if (relojRef.current.modo === 'intervalo') {
+      aplicarReloj({ modo: 'round', restante: roundBaseRef.current });
     }
   };
 
-  const avanzarCombo = () => {
-    if (intervencionActual && comboStep < intervencionActual.pasos.length - 1) {
-      setComboStep(c => c + 1);
-    }
+  const handleRespuesta = (op: OpcionPregunta) => {
+    const actual = pregunta;
+    if (!actual || etapaRef.current !== 'cabeza') return;
+    respuestaRef.current = {
+      preguntaId: actual.id,
+      opcionId: op.id,
+      regla: op.entrada,
+    };
+    const entrada = seleccionarIntervencion('entrada', ganasRef.current, {
+      regla: op.entrada,
+      evitadoIds: [...usadasRef.current, ...ultimasRef.current],
+      semilla: semillaRef.current,
+    });
+    intervencionRef.current = entrada;
+    setIntervencion(entrada);
+    setCompletado(false);
+    animandoRef.current = false;
+    roundBaseRef.current = ROUND_ENTRADA;
+    aplicarReloj({ modo: 'round', restante: ROUND_ENTRADA });
+    cambiarEntradaSub(ganasRef.current <= 2 ? 'seguimos' : 'intervencion');
+    cambiarEtapa('entrada');
   };
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+  const handleSeguir = () => {
+    roundBaseRef.current = ROUND_ENTRADA;
+    aplicarReloj({ modo: 'round', restante: ROUND_ENTRADA });
+    cambiarEntradaSub('intervencion');
+  };
+
+  const etapaIndex = etapa === 'estado' ? 0 : etapa === 'activacion' ? 1 : etapa === 'cabeza' ? 2 : 3;
+
+  const renderAnillo = (roundLabel: string) => (
+    <>
+      <Text style={styles.roundLabel}>{roundLabel}</Text>
+      <Animated.View
+        style={[
+          styles.timerCircle,
+          reloj.modo === 'intervalo' && styles.timerCircleActivo,
+          { transform: [{ scale: pulseAnim }] },
+        ]}
+      >
+        <Text style={styles.timerText}>{formatTime(reloj.restante)}</Text>
+        <Text style={styles.timerModo}>{reloj.modo === 'intervalo' ? 'EN CURSO' : 'ROUND'}</Text>
+      </Animated.View>
+    </>
+  );
+
+  const renderIntervencionCard = (eyebrow: string) =>
+    intervencion ? (
+      <View style={styles.intervencionCard}>
+        <Text style={styles.intervencionEyebrow}>{eyebrow}</Text>
+        <Text style={styles.intervencionTitulo}>{intervencion.titulo}</Text>
+        <Text style={styles.intervencionInstruccion}>{intervencion.instruccion}</Text>
+        {(intervencion.reps || intervencion.duracionSeg) && (
+          <Text style={styles.intervencionMeta}>
+            {intervencion.reps ?? `${intervencion.duracionSeg} SEGUNDOS`}
+          </Text>
+        )}
+      </View>
+    ) : null;
+
+  const renderAcciones = () => {
+    if (completado) {
+      return (
+        <Animated.View style={[styles.completadoView, { transform: [{ scale: checkAnim }] }]}>
+          <Ionicons name="checkmark-circle" size={56} color={PALETTE.categorias.habitos} />
+          <Text style={styles.completadoTexto}>COMPLETADO</Text>
+        </Animated.View>
+      );
+    }
+    const actual = intervencionRef.current;
+    const corriendo = reloj.modo === 'intervalo';
+    return (
+      <View style={{ width: '100%' }}>
+        {corriendo ? (
+          <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && pressedFeedback]} onPress={handleListo}>
+            <Text style={styles.primaryBtnText}>LISTO</Text>
+          </Pressable>
+        ) : actual && actual.duracionSeg ? (
+          <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && pressedFeedback]} onPress={handleEmpezar}>
+            <Text style={styles.primaryBtnText}>EMPEZAR</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && pressedFeedback]} onPress={completarIntervencion}>
+            <Text style={styles.primaryBtnText}>HECHO</Text>
+          </Pressable>
+        )}
+        {!corriendo && (
+          <Pressable style={({ pressed }) => [styles.ghostBtn, pressed && pressedFeedback]} onPress={handleCambiarReto}>
+            <Text style={styles.ghostBtnText}>CAMBIAR RETO</Text>
+          </Pressable>
+        )}
+      </View>
+    );
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.closeBtn}>
+        <Pressable
+          onPress={salir}
+          style={({ pressed }) => [styles.closeBtn, pressed && pressedFeedback]}
+          hitSlop={6}
+        >
           <Ionicons name="close" size={28} color={PALETTE.ash} />
         </Pressable>
         <Text style={styles.headerTitle}>TU ESQUINA</Text>
-        <View style={{ width: 28 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
-      <Animated.ScrollView 
+      <Animated.ScrollView
         contentContainerStyle={styles.scroll}
         style={{ opacity: fadeAnim, transform: [{ scale: scaleAnim }] }}
       >
-        {step === 'intensidíad' && (
-          <View style={styles.centerContainer}>
-            <Text style={styles.title}>¿Qué tan fuerte es el impulso?</Text>
-            <View style={styles.intensidíadScale}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => {
-                const color = n > 7 ? PALETTE.categorias.importante : n > 3 ? PALETTE.onSurfaceVariant : PALETTE.fondos.control;
-                const shadow = n > 7 ? { shadowColor: PALETTE.categorias.importante, shadowOpacity: 0.3, shadowRadius: 8, elevation: 8 } : {};
-                return (
-                  <Pressable 
-                    key={n} 
-                    onPress={() => handleIntensidíad(n)}
-                    style={({pressed}) => [
-                      styles.intensidíadBtn,
-                      { borderColor: color, backgroundColor: n > 7 ? tint(PALETTE.categorias.importante, 0.1) : PALETTE.surfaceDark },
-                      shadow,
-                      pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] }
-                    ]}
-                  >
-                    <Text style={styles.intensidíadText}>{n}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.intensidíadLabels}>
-              <Text style={styles.hintText}>Leve</Text>
-              <Text style={styles.hintText}>A punto de actuar</Text>
-            </View>
-          </View>
-        )}
-
-        {step === 'contexto' && (
-          <View style={styles.centerContainer}>
-            <Text style={styles.title}>¿Qué está pasando?</Text>
-            <View style={styles.optionsGrid}>
-              {CONTEXTOS.map(ctx => (
-                <Pressable 
-                  key={ctx}
-                  style={({pressed}) => [styles.optionBtn, pressed && { backgroundColor: PALETTE.onSurfaceVariant }]}
-                  onPress={() => handleContexto(ctx)}
-                >
-                  <Text style={styles.optionText}>{ctx}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {step === 'preparacion' && (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={PALETTE.onDarkMuted} style={{ marginBottom: 24 }} />
-            <Text style={styles.quoteText}>{getFrase('transicion')?.texto || 'Preparando round...'}</Text>
-          </View>
-        )}
-
-        {step === 'round' && (
-          <View style={styles.centerContainer}>
-            <Text style={styles.roundLabel}>ROUND 0{currentRound}</Text>
-            
-            <Animated.View style={[styles.timerCircle, { transform: [{ scale: pulseAnim }] }]}>
-              <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-            </Animated.View>
-
-            <Text style={styles.quoteText}>"{fraseActual?.texto}"</Text>
-
-            {intervencionActual && (
-              <View style={styles.intervencionCard}>
-                <Text style={styles.intervencionTitle}>{intervencionActual.titulo}</Text>
-                
-                {intervencionActual.tipo === 'combo' || intervencionActual.tipo === 'movimiento' ? (
-                  <View>
-                    {intervencionActual.pasos.map((paso, idx) => {
-                      const isPast = idx < comboStep;
-                      const isCurrent = idx === comboStep;
-                      return (
-                        <Pressable 
-                          key={idx} 
-                          onPress={isCurrent ? avanzarCombo : undefined}
-                          style={[styles.comboRow, isPast && { opacity: 0.4 }]}
-                        >
-                          <Ionicons 
-                            name={isPast ? "checkmark-circle" : isCurrent ? "ellipse-outline" : "ellipse"} 
-                            size={20} 
-                            color={isPast ? PALETTE.categorias.finanzas : isCurrent ? PALETTE.onDark : PALETTE.onSurfaceVariant} 
-                          />
-                          <Text style={[styles.comboText, isCurrent && styles.comboTextActive]}>{paso}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <Text style={styles.intervencionBody}>
-                    {intervencionActual.pasos.join('\n\n')}
-                  </Text>
+        <View style={styles.center}>
+          <View style={styles.pipsRow}>
+            {ETAPAS.map((nombre, i) => (
+              <React.Fragment key={nombre}>
+                {i > 0 && (
+                  <View style={[styles.pipLinea, i <= etapaIndex && styles.pipLineaHecha]} />
                 )}
+                <View
+                  style={[
+                    styles.pip,
+                    i < etapaIndex && styles.pipHecha,
+                    i === etapaIndex && styles.pipActiva,
+                  ]}
+                />
+              </React.Fragment>
+            ))}
+          </View>
+          <Text style={styles.pipLabel}>{ETAPAS[etapaIndex]}</Text>
+
+          {etapa === 'estado' && (
+            <>
+              <Text style={styles.titleEscala}>¿Cómo te encuentras?</Text>
+              <Text style={styles.escalaCaption}>1 = pocas ganas · 5 = muchas</Text>
+              <View style={styles.ganasRow}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <View key={n} style={styles.ganasCol}>
+                    <Pressable
+                      onPress={() => handleGanas(n)}
+                      style={({ pressed }) => [styles.ganasBtn, pressed && pressedFeedback]}
+                    >
+                      <Text style={styles.ganasNum}>{n}</Text>
+                    </Pressable>
+                    <Text style={styles.ganasFrase}>{ESCALA_FRASES[n] ?? ''}</Text>
+                  </View>
+                ))}
               </View>
-            )}
-          </View>
-        )}
+              <Text style={styles.hintText}>Elige la que mejor describa tu momento. No hay respuesta mala.</Text>
+            </>
+          )}
 
-        {step === 'evaluacion' && (
-          <View style={styles.centerContainer}>
-            <Text style={styles.roundLabel}>ROUND TERMINADO</Text>
-            <Text style={styles.title}>¿Cómo estás ahora?</Text>
+          {etapa === 'activacion' && (
+            <>
+              {renderAnillo('ROUND 01')}
+              {frase && <Text style={styles.quoteText}>{frase.texto}</Text>}
+              {renderIntervencionCard('ACTIVACIÓN')}
+              {renderAcciones()}
+            </>
+          )}
 
-            <View style={styles.decisionOptions}>
-              <Pressable style={({pressed}) => [styles.decBtn, pressed && pressedFeedback]} onPress={() => handleEvaluacion('mejor')}>
-                <Text style={styles.decText}>El impulso bajó (Mucho mejor)</Text>
-              </Pressable>
-              <Pressable style={({pressed}) => [styles.decBtn, styles.decBtnAlt, pressed && pressedFeedback]} onPress={() => handleEvaluacion('igual')}>
-                <Text style={styles.decTextAlt}>Todíavía tengo ganas (Igual)</Text>
-              </Pressable>
-              <Pressable style={({pressed}) => [styles.decBtn, styles.decBtnAlt, pressed && pressedFeedback]} onPress={() => handleEvaluacion('peor')}>
-                <Text style={styles.decTextAlt}>Está más fuerte (Peor)</Text>
-              </Pressable>
-              <Pressable style={({pressed}) => [styles.decBtn, styles.decBtnGhost, pressed && pressedFeedback]} onPress={() => handleEvaluacion('recaidía')}>
-                <Text style={styles.decTextGhost}>Terminé haciéndolo</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
+          {etapa === 'cabeza' && (
+            <>
+              <Text style={styles.eyebrow}>TU CABEZA</Text>
+              <Text style={styles.title}>{pregunta?.texto ?? ''}</Text>
+              <View style={styles.opciones}>
+                {pregunta?.opciones.map(op => (
+                  <Pressable
+                    key={op.id}
+                    onPress={() => handleRespuesta(op)}
+                    style={({ pressed }) => [styles.opcionBtn, pressed && pressedFeedback]}
+                  >
+                    <Text style={styles.opcionText}>{op.etiqueta}</Text>
+                    <Ionicons name="chevron-forward" size={18} color={PALETTE.outline} />
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
 
-        {step === 'momento_clave' && (
-          <View style={styles.centerContainer}>
-            <Text style={styles.superTitle}>PAUSA.</Text>
-            <Text style={styles.title}>Hace unos minutos querías actuar.</Text>
-            <Text style={[styles.title, { color: PALETTE.categorias.importante }]}>Ahora seguís aquí.</Text>
-            
-            <Text style={styles.quoteText}>{getFrase('post_resistencia')?.texto}</Text>
+          {etapa === 'entrada' && entradaSub === 'seguimos' && (
+            <>
+              <Text style={styles.quoteText}>{TEXTO_BAJAS_GANAS}</Text>
+              <Text style={styles.title}>{TEXTO_SEGUIMOS}</Text>
+              <View style={{ width: '100%' }}>
+                <Pressable
+                  style={({ pressed }) => [styles.primaryBtn, pressed && pressedFeedback]}
+                  onPress={handleSeguir}
+                >
+                  <Text style={styles.primaryBtnText}>SEGUIR</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.ghostBtn, pressed && pressedFeedback]}
+                  onPress={salir}
+                >
+                  <Text style={styles.ghostBtnText}>TERMINAR</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
 
-            <Pressable style={({pressed}) => [styles.finishBtn, pressed && pressedFeedback]} onPress={() => setStep('final')}>
-              <Text style={styles.finishBtnText}>Terminar Entrenamiento</Text>
-            </Pressable>
-          </View>
-        )}
+          {etapa === 'entrada' && entradaSub === 'intervencion' && (
+            <>
+              {renderAnillo('ROUND 02')}
+              {renderIntervencionCard('ENTRADA')}
+              {renderAcciones()}
+            </>
+          )}
 
-        {step === 'final' && (
-          <View style={styles.centerContainer}>
-            <Ionicons name="shield-checkmark" size={64} color={PALETTE.onSurfaceVariant} style={{ marginBottom: 24 }} />
-            <Text style={styles.title}>Round Registrado.</Text>
-            
-            {fraseActual?.categoria === 'post_recaida' && (
-              <Text style={styles.quoteText}>"{fraseActual.texto}"</Text>
-            )}
-            
-            <Text style={styles.hintText}>Podés volver a tu esquina cuando lo necesites.</Text>
-
-            <Pressable style={({pressed}) => [styles.finishBtn, pressed && pressedFeedback]} onPress={() => navigation.goBack()}>
-              <Text style={styles.finishBtnText}>Volver al mapa</Text>
-            </Pressable>
-          </View>
-        )}
+          {etapa === 'entrada' && entradaSub === 'cierre' && (
+            <>
+              <Ionicons
+                name="arrow-forward-circle"
+                size={56}
+                color={PALETTE.accent}
+                style={{ marginBottom: 16 }}
+              />
+              <Text style={styles.title}>{CIERRE_TEXTO}</Text>
+              {ganas >= 5 && <Text style={styles.quoteText}>{TEXTO_ALTA_GANAS}</Text>}
+              <View style={{ width: '100%' }}>
+                <Pressable
+                  style={({ pressed }) => [styles.primaryBtn, pressed && pressedFeedback]}
+                  onPress={salir}
+                >
+                  <Text style={styles.primaryBtnText}>TERMINAR</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
+        </View>
       </Animated.ScrollView>
     </SafeAreaView>
   );
@@ -322,66 +555,166 @@ export default function ControlScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: PALETTE.surfaceDark },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12 },
-  closeBtn: { padding: 8 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  closeBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerSpacer: { width: 44, height: 44 },
   headerTitle: { fontSize: 14, fontWeight: '800', color: PALETTE.ash, letterSpacing: 2 },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40, justifyContent: 'center' },
-  centerContainer: { alignItems: 'center', width: '100%' },
-  superTitle: { fontSize: 16, color: PALETTE.outline, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 16 },
-  title: { fontSize: 28, fontWeight: '800', color: PALETTE.onDark, marginBottom: 32, textAlign: 'center', lineHeight: 34 },
-  intensidíadScale: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginBottom: 12 },
-  intensidíadBtn: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', borderWidth: 2 },
-  intensidíadText: { fontSize: 20, fontWeight: '700', color: PALETTE.onDark },
-  intensidíadLabels: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', paddingHorizontal: 16 },
-  optionsGrid: { width: '100%', gap: 12 },
-  optionBtn: { backgroundColor: PALETTE.fondos.control, paddingVertical: 18, paddingHorizontal: 20, borderRadius: RADIUS.cards, borderWidth: 1, borderColor: PALETTE.onSurfaceVariant, alignItems: 'center' },
-  optionText: { fontSize: 16, fontWeight: '600', color: PALETTE.onDarkMuted },
-  roundLabel: { fontSize: 16, fontWeight: '800', color: PALETTE.categorias.importante, letterSpacing: 2, marginBottom: 24 },
-  timerCircle: { 
-    width: 200, height: 200, 
-    borderRadius: 100, 
-    borderWidth: 6, 
-    borderColor: PALETTE.onSurfaceVariant, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginBottom: 32,
+  center: { alignItems: 'center', width: '100%' },
+
+  pipsRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: 8 },
+  pip: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: PALETTE.outline,
+  },
+  pipHecha: { backgroundColor: PALETTE.onSurfaceVariant, borderColor: PALETTE.onSurfaceVariant },
+  pipActiva: {
+    backgroundColor: PALETTE.categorias.importante,
+    borderColor: PALETTE.categorias.importante,
+  },
+  pipLinea: {
+    flex: 1,
+    height: 1,
+    backgroundColor: PALETTE.outline,
+    opacity: 0.4,
+    marginHorizontal: 4,
+  },
+  pipLineaHecha: { backgroundColor: PALETTE.categorias.importante, opacity: 0.8 },
+  pipLabel: { ...TYPE.label, color: PALETTE.categorias.importante, textAlign: 'center', marginBottom: 24 },
+
+  title: { ...TYPE.title, color: PALETTE.onDark, textAlign: 'center', marginBottom: 24 },
+  titleEscala: { ...TYPE.title, color: PALETTE.onDark, textAlign: 'center', marginBottom: 8 },
+  escalaCaption: { ...TYPE.caption, color: PALETTE.outline, textAlign: 'center', marginBottom: 24 },
+  eyebrow: { ...TYPE.label, color: PALETTE.outline, textAlign: 'center', marginBottom: 12 },
+  roundLabel: { ...TYPE.label, color: PALETTE.categorias.importante, marginBottom: 16 },
+  quoteText: {
+    fontSize: 17,
+    lineHeight: 25,
+    fontWeight: '600',
+    color: PALETTE.onDarkMuted,
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  hintText: { ...TYPE.caption, color: PALETTE.ash, textAlign: 'center', fontStyle: 'italic' },
+
+  timerCircle: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    borderWidth: 6,
+    borderColor: PALETTE.onSurfaceVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
     backgroundColor: PALETTE.surfaceDark,
-    shadowColor: PALETTE.categorias.importante,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 30,
-    elevation: 20
   },
-  timerText: { fontSize: 64, fontWeight: '800', color: PALETTE.onDark, fontVariant: ['tabular-nums'], letterSpacing: 0 },
-  quoteText: { fontSize: 22, fontWeight: '700', color: PALETTE.onDarkMuted, textAlign: 'center', lineHeight: 32, marginBottom: 32, paddingHorizontal: 8 },
-  intervencionCard: { 
-    backgroundColor: PALETTE.fondos.control, 
-    padding: 24, 
-    borderRadius: RADIUS.cards, 
-    width: '100%', 
+  timerCircleActivo: { borderColor: PALETTE.categorias.importante },
+  timerText: {
+    ...TYPE.display,
+    fontSize: 48,
+    lineHeight: 52,
+    color: PALETTE.onDark,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0,
+  },
+  timerModo: { ...TYPE.label, color: PALETTE.outline, marginTop: 4 },
+
+  ganasRow: { flexDirection: 'row', gap: 8, marginBottom: 16, justifyContent: 'center', alignItems: 'flex-start' },
+  ganasCol: { flex: 1, alignItems: 'center', gap: 8 },
+  ganasBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: PALETTE.fondos.control,
     borderWidth: 1,
-    borderColor: tint(PALETTE.onAccent, 0.05),
-    borderLeftWidth: 4, 
-    borderLeftColor: PALETTE.categorias.objetivos,
-    shadowColor: PALETTE.categorias.objetivos,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 16
+    borderColor: PALETTE.onSurfaceVariant,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  intervencionTitle: { fontSize: 13, fontWeight: '800', color: PALETTE.outline, letterSpacing: 1.5, marginBottom: 16 },
-  intervencionBody: { fontSize: 16, color: PALETTE.onDark, lineHeight: 26, fontWeight: '500' },
-  comboRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  comboText: { fontSize: 16, color: PALETTE.outline, fontWeight: '500' },
-  comboTextActive: { color: PALETTE.onDark, fontWeight: '700' },
-  hintText: { fontSize: 14, color: PALETTE.ash, textAlign: 'center', fontStyle: 'italic' },
-  decisionOptions: { width: '100%', gap: 12 },
-  decBtn: { backgroundColor: PALETTE.surfaceContainerLowest, paddingVertical: 18, borderRadius: RADIUS.buttons, alignItems: 'center' },
-  decText: { fontSize: 16, fontWeight: '800', color: PALETTE.ink },
-  decBtnAlt: { backgroundColor: PALETTE.fondos.control, borderWidth: 1, borderColor: PALETTE.onSurfaceVariant },
-  decTextAlt: { fontSize: 16, fontWeight: '700', color: PALETTE.onDark },
-  decBtnGhost: { backgroundColor: 'transparent', marginTop: 12 },
-  decTextGhost: { fontSize: 14, fontWeight: '600', color: PALETTE.ash },
-  finishBtn: { backgroundColor: PALETTE.primary, paddingVertical: 18, paddingHorizontal: 40, borderRadius: RADIUS.buttons, marginTop: 32, width: '100%', alignItems: 'center' },
-  finishBtnText: { color: PALETTE.onAccent, fontSize: 16, fontWeight: '800' }
+  ganasNum: { fontSize: 22, fontWeight: '700', color: PALETTE.onDark, letterSpacing: 0 },
+  ganasFrase: {
+    ...TYPE.label,
+    fontSize: 9,
+    lineHeight: 12,
+    letterSpacing: 0.5,
+    color: PALETTE.outline,
+    textAlign: 'center',
+  },
+
+  intervencionCard: {
+    width: '100%',
+    backgroundColor: PALETTE.fondos.control,
+    borderRadius: RADIUS.cards,
+    padding: 24,
+    marginBottom: 24,
+  },
+  intervencionEyebrow: { ...TYPE.label, color: PALETTE.outline, marginBottom: 8 },
+  intervencionTitulo: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '700',
+    color: PALETTE.onDark,
+    marginBottom: 8,
+    letterSpacing: 0,
+  },
+  intervencionInstruccion: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: PALETTE.onDarkMuted,
+    marginBottom: 12,
+    letterSpacing: 0,
+  },
+  intervencionMeta: { ...TYPE.label, color: PALETTE.categorias.importante },
+
+  opciones: { width: '100%', gap: 12 },
+  opcionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: PALETTE.fondos.control,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    borderRadius: RADIUS.cards,
+    minHeight: 56,
+  },
+  opcionText: { fontSize: 16, fontWeight: '600', color: PALETTE.onDarkMuted, flex: 1, letterSpacing: 0 },
+
+  completadoView: { alignItems: 'center', width: '100%', paddingVertical: 8 },
+  completadoTexto: { ...TYPE.label, color: PALETTE.categorias.habitos, marginTop: 8 },
+
+  primaryBtn: {
+    width: '100%',
+    minHeight: 56,
+    backgroundColor: PALETTE.primary,
+    borderRadius: RADIUS.buttons,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  primaryBtnText: { color: PALETTE.onAccent, fontSize: 15, fontWeight: '800', letterSpacing: 0, textAlign: 'center' },
+  ghostBtn: {
+    minHeight: 44,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+  },
+  ghostBtnText: { color: PALETTE.outline, fontSize: 14, fontWeight: '700', letterSpacing: 0 },
 });
